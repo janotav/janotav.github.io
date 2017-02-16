@@ -4,16 +4,211 @@
 </head>
 <script src="https://www.gstatic.com/firebasejs/3.6.9/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/3.6.9/firebase-messaging.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 <script src="script.js"></script>
+<script type="text/javascript">
+    window.onload = function() {
+        loadMeta();
+
+        $("#alarm_toggle").click(function () {
+            console.log('alarm toggle clicked!');
+            $("#alarm_toggle").addClass("inactive");
+            return false;
+        });
+
+//        $("#ALIBA_bad").click(function () {
+//            $("#alarm_toggle").removeClass("inactive");
+//            var $alarmLevel = $("#alarm_level");
+//            $alarmLevel.removeClass("very_good good satisfactory acceptable very_bad").addClass("bad");
+//            $alarmLevel.text('špatná');
+//
+//            var $alarmLevelNumber = $("#alarm_level_number");
+//            $alarmLevelNumber.removeClass("very_good good satisfactory acceptable very_bad").addClass("bad");
+//            $alarmLevelNumber.text('5');
+//
+//            return false;
+//        });
+    }
+</script>
+<style media="screen" type="text/css">
+
+    .very_bad { background:  #671F20; color: #FFFFFF }
+    .bad { background: #ED1C24; color: #FFFFFF }
+    .acceptable { background: #FAA61A; color: #000000 }
+    .satisfactory { background: #FFF200; color: #000000  }
+    .good { background: #9BD3AE; color: #000000  }
+    .very_good { background: #C7EAFB; color: #000000  }
+    .incomplete { background: #FFFFFF; color: #000000 }
+    .undetermined { background: #CFCFCF; color: #000000 }
+
+    .station {
+        text-align:center;
+        padding: 8px;
+
+        border: 1px solid #000000;
+        -moz-box-shadow: inset 6px 6px 6px rgba(255, 255, 255, .4), inset -6px -6px 6px rgba(0, 0, 0, .4);
+        -webkit-box-shadow: inset 6px 6px 6px rgba(255, 255, 255, .4), inset -6px -6px 6px rgba(0, 0, 0, .4);
+        box-shadow: inset 6px 6px 6px rgba(255, 255, 255, .4), inset -6px -6px 6px rgba(0, 0, 0, .4);
+    }
+
+    .measurement {
+        padding: 5px;
+    }
+
+    body {
+        background: #000000;
+        color: #FFFFFF;
+    }
+
+    .inactive {
+        opacity: 0.5;
+    }
+
+    .invisible {
+        display: none;
+    }
+
+    span.distance {
+        display: block;
+        font-size: 75%;
+        opacity: 0.75;
+    }
+
+    span.limit {
+        font-size: 75%;
+        opacity: 0.75;
+    }
+
+    .header_outer {
+        display: flex;
+        flex-direction: column;
+
+        position: fixed;
+        width: 100%;
+        top: 0;
+        left: 0;
+        z-index: 999;
+        background-color: #000000;
+    }
+
+    .header_inner {
+        display: flex;
+        flex-direction: row;
+        padding-left: 10px;
+        font-size: 50px;
+    }
+
+    .alarm_location {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    img.alarm {
+        width: 150px;
+        height: 150px;
+    }
+
+    div.alarm {
+        position: absolute;
+        top: 0;
+        left: 10px;
+        width: 150px;
+        height: 150px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    div.alarm_inner {
+        margin: 25%;
+    }
+
+    .alarm_panel {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+
+        padding: 10px;
+    }
+
+    .alarm_toggle {
+        padding: 8px;
+    }
+
+    .time {
+        border-bottom: 1px solid #FFFFFF;
+        margin: 10px;
+        padding: 3px;
+        font-size: 50px;
+    }
+
+    .header_placer_holder {
+        height: 230px;
+    }
+
+    div.stations {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .nodata {
+        padding: 3px;
+    }
+</style>
 <body>
-<p>
-    Hello World
-</p>
-<p>
-    The token is: <div id="token"></div>
-</p>
-<p>
-    Message is: <div id="message"></div>
-</p>
+<div id="header_outer" class="header_outer">
+    <div class="header_inner">
+        <div id="alarm_toggle">
+            <img src="img/alarm.png" class="alarm"/>
+            <div class="alarm"><div id="alarm_level_number" class="alarm_inner acceptable">4</div></div>
+        </div>
+        <div class="alarm_location">
+            <div>Praha 4-Libuš aktuálně <span class="good">dobrá</span></div><div>signalizuj <span id="alarm_level" class="acceptable">vyhovující</span> a horší</div>
+        </div>
+    </div>
+    <div class="time">
+        Čas měření <span id="date">16.2.2017 19:00</span>
+    </div>
+</div>
+<div id="header_place_holder" class="header_placer_holder"></div>
+<div id="stations" class="stations">
+    <!--
+    <div id="ALIBA" class="station good">Praha 4-Libuš <span id="ALIBA_distance" class="distance">2,2 km, Praha</span></div>
+    <div id="ALIBA_detail" class="detail invisible">
+        <div class="measurement very_good">
+            <div>Oxid siřičitý: 3 µg/m³</div>
+            <div><span class="limit">Velmi dobrá (0 - 25 µg/m³)</span></div>
+        </div>
+        <div class="measurement good">
+            <div>Oxid dusičitý: 33 µg/m³</div>
+            <div><span class="limit">Dobrá (25 - 50 µg/m³)</span></div>
+        </div>
+        <div class="measurement very_good">
+            <div>Oxid uhelnatý: 411 µg/m³</div>
+            <div><span class="limit">Velmi dobrá (0 - 1000 µg/m³)</span></div>
+        </div>
+        <div class="measurement good">
+            <div>Ozon: 38 µg/m³</div>
+            <div><span class="limit">Dobrá (33 - 65 µg/m³)</span></div>
+        </div>
+        <div class="measurement very_good">
+            <div>Prach PM10: 1 µg/m³</div>
+            <div><span class="limit">Velmi dobrá (0 - 20 µg/m³)</span></div>
+        </div>
+        <div class="alarm_panel good">
+            Nastav upozornění:
+            <div id="ALIBA_very_good" class="alarm_toggle very_good">1</div>
+            <div id="ALIBA_good" class="alarm_toggle good">|</div>
+            <div id="ALIBA_satisfactory" class="alarm_toggle satisfactory">3</div>
+            <div id="ALIBA_acceptable" class="alarm_toggle acceptable">4</div>
+            <div id="ALIBA_bad" class="alarm_toggle bad">5</div>
+            <div id="ALIBA_very_bad" class="alarm_toggle very_bad">6</div>
+        </div>
+    </div>
+    -->
+</div>
 </body>
 </html>
