@@ -8,26 +8,7 @@
 <script src="script.js"></script>
 <script type="text/javascript">
     window.onload = function() {
-        loadMeta();
-
-        $("#alarm_toggle").click(function () {
-            console.log('alarm toggle clicked!');
-            $("#alarm_toggle").addClass("inactive");
-            return false;
-        });
-
-//        $("#ALIBA_bad").click(function () {
-//            $("#alarm_toggle").removeClass("inactive");
-//            var $alarmLevel = $("#alarm_level");
-//            $alarmLevel.removeClass("very_good good satisfactory acceptable very_bad").addClass("bad");
-//            $alarmLevel.text('špatná');
-//
-//            var $alarmLevelNumber = $("#alarm_level_number");
-//            $alarmLevelNumber.removeClass("very_good good satisfactory acceptable very_bad").addClass("bad");
-//            $alarmLevelNumber.text('5');
-//
-//            return false;
-//        });
+        initialize();;
     }
 </script>
 <style media="screen" type="text/css">
@@ -130,12 +111,14 @@
         flex-direction: row;
         justify-content: space-between;
         align-items: center;
-
+        font-size: 50px;
         padding: 10px;
     }
 
     .alarm_toggle {
-        padding: 8px;
+        padding-left: 15px;
+        padding-right: 15px;
+        font-size: 50px;
     }
 
     .time {
@@ -161,16 +144,17 @@
 <body>
 <div id="header_outer" class="header_outer">
     <div class="header_inner">
-        <div id="alarm_toggle">
+        <div id="alarm_toggle" class="inactive">
             <img src="img/alarm.png" class="alarm"/>
-            <div class="alarm"><div id="alarm_level_number" class="alarm_inner acceptable">4</div></div>
+            <div class="alarm"><div id="alarm_level_number" class="alarm_inner"></div></div>
         </div>
         <div class="alarm_location">
-            <div>Praha 4-Libuš aktuálně <span class="good">dobrá</span></div><div>signalizuj <span id="alarm_level" class="acceptable">vyhovující</span> a horší</div>
+            <div><span id="alarm_location"></span> <span id="alarm_value"></span></div>
+            <div>upozornění <span id="alarm_level"></span><span id="alarm_direction"></span></div>
         </div>
     </div>
     <div class="time">
-        Čas měření <span id="date">16.2.2017 19:00</span>
+        Čas měření <span id="date"></span>
     </div>
 </div>
 <div id="header_place_holder" class="header_placer_holder"></div>
