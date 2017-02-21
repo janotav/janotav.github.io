@@ -273,7 +273,7 @@ function setMeta(meta) {
     myMeta = meta;
     
     $("#time_outer").removeClass("invisible");
-    $("#loader").addClass("invisible");
+    $("#loader").remove();
 
     var stations = $("#stations");
     stations.empty();
@@ -311,57 +311,65 @@ function setAlarm(alarm) {
 }
 
 function displayAlarm() {
+    if (typeof myStations === 'undefined') {
+        return;
+    }
+
     var alarmDirection = $("#alarm_direction");
+    var alarmOuter = $("#alarm_outer");
+    var alarmLoader = $("#alarm_loader");
+
+    if (myAlarm === false) {
+        alarmOuter.addClass("alarm_outer inactive");
+        alarmOuter.removeClass("invisible");
+        alarmLoader.remove();
+        alarmDirection.text("nepodporováno");
+        return;
+    }
+
+    if (typeof myAlarm === 'undefined') {
+        alarmLoader.removeClass("invisible");
+        return;
+    }
+
     var alarmLevel = $("#alarm_level");
     var alarmValue = $("#alarm_value");
     var alarmLocation = $("#alarm_location");
     var alarmLevelNumber = $("#alarm_level_number");
-    var alarmOuter = $("#alarm_outer");
-    var alarmLoader = $("#alarm_loader");
 
-    if (myAlarm === false || typeof myAlarm === 'undefined' || typeof myAlarm.code === 'undefined' || typeof myStations === 'undefined' ) {
+    if (typeof myAlarm.code === 'undefined') {
         alarmLocation.text("");
         alarmValue.text("");
         alarmLevel.text("");
         alarmLevelNumber.text("");
-        if (myAlarm === false) {
-            alarmOuter.addClass("alarm_outer inactive");
-            alarmOuter.removeClass("invisible");
-            alarmLoader.addClass("invisible");
-            alarmDirection.text("nepodporováno");
-        } else if (typeof myAlarm !== 'undefined' && typeof myAlarm.code === 'undefined' ) {
-            alarmOuter.addClass("alarm_outer inactive");
-            alarmOuter.removeClass("invisible");
-            alarmLoader.addClass("invisible");
-            alarmDirection.text("nenastaveno");
-        } else {
-            alarmOuter.removeClass("alarm_outer inactive");
-            alarmOuter.addClass("invisible");
-            alarmLoader.removeClass("invisible");
-        }
-    } else {
-        var station = myStations[myAlarm.code];
-        var qualityClass = emission_idx[station.idx + 1];
-        var alarmClass = emission_idx[Math.abs(myAlarm.level) + 1];
-        alarmLocation.text(station.name);
-        alarmValue.text(qualityLabel[qualityClass]);
-        alarmValue.removeClass("undetermined incomplete very_good good satisfactory acceptable bad very_bad").addClass(qualityClass);
-        alarmLevel.text(qualityLabel[alarmClass]);
-        alarmLevel.removeClass("very_good good satisfactory acceptable bad very_bad").addClass(alarmClass);
-        alarmLevelNumber.text(Math.abs(myAlarm.level));
-        alarmLevelNumber.removeClass("very_good good satisfactory acceptable bad very_bad").addClass(alarmClass);
-        alarmOuter.removeClass("inactive");
-        if (myAlarm.level == -1 || myAlarm.level == 6) {
-            alarmDirection.text("");
-        } else if (myAlarm.level > 0) {
-            alarmDirection.text(" a horší");
-        } else {
-            alarmDirection.text(" a lepší");
-        }
-        alarmOuter.addClass("alarm_outer");
-        alarmOuter.removeClass("invisible inactive");
-        alarmLoader.addClass("invisible");
+        alarmOuter.addClass("alarm_outer inactive");
+        alarmOuter.removeClass("invisible");
+        alarmLoader.remove();
+        alarmDirection.text("nenastaveno");
+        return;
     }
+
+    var station = myStations[myAlarm.code];
+    var qualityClass = emission_idx[station.idx + 1];
+    var alarmClass = emission_idx[Math.abs(myAlarm.level) + 1];
+    alarmLocation.text(station.name);
+    alarmValue.text(qualityLabel[qualityClass]);
+    alarmValue.removeClass("undetermined incomplete very_good good satisfactory acceptable bad very_bad").addClass(qualityClass);
+    alarmLevel.text(qualityLabel[alarmClass]);
+    alarmLevel.removeClass("very_good good satisfactory acceptable bad very_bad").addClass(alarmClass);
+    alarmLevelNumber.text(Math.abs(myAlarm.level));
+    alarmLevelNumber.removeClass("very_good good satisfactory acceptable bad very_bad").addClass(alarmClass);
+    alarmOuter.removeClass("inactive");
+    if (myAlarm.level == -1 || myAlarm.level == 6) {
+        alarmDirection.text("");
+    } else if (myAlarm.level > 0) {
+        alarmDirection.text(" a horší");
+    } else {
+        alarmDirection.text(" a lepší");
+    }
+    alarmOuter.addClass("alarm_outer");
+    alarmOuter.removeClass("invisible inactive");
+    alarmLoader.remove();
 }
 
 const messaging = firebase.messaging();

@@ -8,7 +8,7 @@
 <script src="script.js"></script>
 <script type="text/javascript">
     window.onload = function() {
-        initialize();;
+        initialize();
     }
 </script>
 <style media="screen" type="text/css">
@@ -215,7 +215,7 @@
 </style>
 <body>
 <div id="header_outer" class="header_outer">
-    <div id="alarm_loader" class="loader">
+    <div id="alarm_loader" class="loader invisible">
         <div class="loader_spinner"></div>
     </div>
     <div id="alarm_outer" class="invisible">
@@ -228,10 +228,8 @@
             <div>upozornění <span id="alarm_level"></span> <span id="alarm_direction"></span></div>
         </div>
     </div>
-    <div id="time_outer" class="invisible">
-        <div class="time">
-            Čas měření <span id="date"></span>
-        </div>
+    <div id="time_outer" class="time invisible">
+        Čas měření <span id="date"></span>
     </div>
 </div>
 <div id="header_place_holder" class="header_placer_holder"></div>
