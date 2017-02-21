@@ -403,6 +403,9 @@ messaging.onMessage(function(payload) {
 });
 
 function updateAlarm(alarm) {
+    // waiting for the server call makes the app look a little bit unresponsive, let's assume the operation succeeds
+    var oldAlarm = myAlarm;
+    setAlarm(alarm);
     $.ajax({
         url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/alarm',
         method: 'POST',
@@ -411,8 +414,9 @@ function updateAlarm(alarm) {
         headers: {
             'x-api-key': 'api_key_public_access'
         }
-    }).done(function (item) {
-        setAlarm(alarm);
+    }).fail(function () {
+        // revert to previous setting if server didn't succeed
+        setAlarm(oldAlarm);
     });
 }
 
