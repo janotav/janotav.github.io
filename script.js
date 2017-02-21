@@ -217,36 +217,56 @@ function setDetail(stationCode, data) {
         detail.append(noDataAvailable);
     }
 
+    if (typeof myToken === 'undefined' || myToken === false) {
+        // token not ready or not supported, don't display panel
+        return;
+    }
     if (station.qualityClass === 'undetermined' || station.qualityClass === 'incomplete') {
         // TODO: how to represent better/worse choice if there is no base to start from
     } else {
-        var alarmPanelDiv = $("<div class='alarm_panel'>Upozornění</div>");
-        alarmPanelDiv.addClass(station.qualityClass);
-        emission_idx.slice(2).forEach(function (alarmClass) {
-            var alarmToggle = $("<div class='alarm_toggle'/>");
-            alarmToggle.attr('id', stationCode + "_" + alarmClass);
-            alarmToggle.addClass(alarmClass);
-            if (station.qualityClass === alarmClass) {
-                alarmToggle.text("|");
-            } else {
-                var level = emission_idx.indexOf(alarmClass) - 1;
-                alarmToggle.text(level);
-                if (level < emission_idx.indexOf(station.qualityClass) - 1) {
-                    level = -level;
-                }
-                alarmToggle.click(function () {
-                    updateAlarm({
-                        token: myToken,
-                        code: stationCode,
-                        level: level
-                    });
-                    return false;
-                });
-            }
-            alarmPanelDiv.append(alarmToggle);
-        });
-        detail.append(alarmPanelDiv);
+        addAlarmPanelToDetail(stationCode, detail);
     }
+}
+
+function addAlarmPanelToDetails() {
+    if (typeof myStations !== 'undefined') {
+        Object.keys(myStations).forEach(function (stationCode) {
+            if (typeof myStations[stationCode].detail !== 'undefined') {
+                var detail = $("#" + stationCode + "_detail");
+                addAlarmPanelToDetail(stationCode, detail);
+            }
+        });
+    }
+}
+
+function addAlarmPanelToDetail(stationCode, detail) {
+    var station = myStations[stationCode];
+    var alarmPanelDiv = $("<div class='alarm_panel'>Upozornění</div>");
+    alarmPanelDiv.addClass(station.qualityClass);
+    emission_idx.slice(2).forEach(function (alarmClass) {
+        var alarmToggle = $("<div class='alarm_toggle'/>");
+        alarmToggle.attr('id', stationCode + "_" + alarmClass);
+        alarmToggle.addClass(alarmClass);
+        if (station.qualityClass === alarmClass) {
+            alarmToggle.text("|");
+        } else {
+            var level = emission_idx.indexOf(alarmClass) - 1;
+            alarmToggle.text(level);
+            if (level < emission_idx.indexOf(station.qualityClass) - 1) {
+                level = -level;
+            }
+            alarmToggle.click(function () {
+                updateAlarm({
+                    token: myToken,
+                    code: stationCode,
+                    level: level
+                });
+                return false;
+            });
+        }
+        alarmPanelDiv.append(alarmToggle);
+    });
+    detail.append(alarmPanelDiv);
 }
 
 function setMeta(meta) {
@@ -276,7 +296,12 @@ function setMeta(meta) {
 function setToken(token) {
     if (token !== myToken) {
         myToken = token;
-        loadAlarm();
+        if (token !== false) {
+            loadAlarm();
+            addAlarmPanelToDetails();
+        } else {
+            setAlarm(false);
+        }
     }
 }
 
@@ -294,12 +319,17 @@ function displayAlarm() {
     var alarmOuter = $("#alarm_outer");
     var alarmLoader = $("#alarm_loader");
 
-    if (typeof myAlarm === 'undefined' || typeof myAlarm.code === 'undefined' || typeof myStations === 'undefined' ) {
+    if (myAlarm === false || typeof myAlarm === 'undefined' || typeof myAlarm.code === 'undefined' || typeof myStations === 'undefined' ) {
         alarmLocation.text("");
         alarmValue.text("");
         alarmLevel.text("");
         alarmLevelNumber.text("");
-        if (typeof myAlarm !== 'undefined' && typeof myAlarm.code === 'undefined' ) {
+        if (myAlarm === false) {
+            alarmOuter.addClass("alarm_outer inactive");
+            alarmOuter.removeClass("invisible");
+            alarmLoader.addClass("invisible");
+            alarmDirection.text("nepodporováno");
+        } else if (typeof myAlarm !== 'undefined' && typeof myAlarm.code === 'undefined' ) {
             alarmOuter.addClass("alarm_outer inactive");
             alarmOuter.removeClass("invisible");
             alarmLoader.addClass("invisible");
@@ -345,10 +375,11 @@ messaging.requestPermission()
         messaging.getToken()
             .then(function(currentToken) {
                 console.log('Got token', currentToken);
-                setToken(currentToken);
+                    setToken(currentToken);
             })
             .catch(function(err) {
                 console.log('An error occurred while retrieving token. ', err);
+                setToken(false);
             });
     })
     .catch(function(err) {
