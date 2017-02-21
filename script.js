@@ -128,6 +128,10 @@ function addStation(stations, stationCode, station, regionName) {
     var distance = $("<span class='distance'/>");
     distance.attr('id', stationCode + "_distance");
     stationDiv.append(distance);
+    var stationSpinnerDiv = $("<div class='invisible small_spinner'/>");
+    stationSpinnerDiv.attr('id', stationCode + "_spinner");
+    stationSpinnerDiv.addClass(station.qualityClass + "_spinner");
+    stationDiv.append(stationSpinnerDiv);
     stations.append(stationDiv);
 
     var detailDiv = $("<div class='detail invisible'/>");
@@ -136,6 +140,7 @@ function addStation(stations, stationCode, station, regionName) {
 
     stationDiv.click(function () {
         if (typeof station.detail === 'undefined') {
+            stationSpinnerDiv.removeClass("invisible");
             loadDetail(stationCode);
         }
         if (detailDiv.hasClass("invisible")) {
@@ -183,6 +188,8 @@ function setDetail(stationCode, data) {
     station.detail = {
         data: data
     };
+    
+    $("#" + stationCode + "_spinner").addClass("invisible");
 
     var detail = $("#" + stationCode + "_detail");
     data.forEach(function (measurement) {
@@ -244,6 +251,9 @@ function setDetail(stationCode, data) {
 
 function setMeta(meta) {
     myMeta = meta;
+    
+    $("#time_outer").removeClass("invisible");
+    $("#loader").addClass("invisible");
 
     var stations = $("#stations");
     stations.empty();
@@ -281,15 +291,24 @@ function displayAlarm() {
     var alarmValue = $("#alarm_value");
     var alarmLocation = $("#alarm_location");
     var alarmLevelNumber = $("#alarm_level_number");
-    var alarmToggle = $("#alarm_toggle");
+    var alarmOuter = $("#alarm_outer");
+    var alarmLoader = $("#alarm_loader");
 
     if (typeof myAlarm === 'undefined' || typeof myAlarm.code === 'undefined' || typeof myStations === 'undefined' ) {
         alarmLocation.text("");
         alarmValue.text("");
         alarmLevel.text("");
         alarmLevelNumber.text("");
-        alarmToggle.addClass("inactive");
-        alarmDirection.text("nenastaveno");
+        if (typeof myAlarm !== 'undefined' && typeof myAlarm.code === 'undefined' ) {
+            alarmOuter.addClass("alarm_outer inactive");
+            alarmOuter.removeClass("invisible");
+            alarmLoader.addClass("invisible");
+            alarmDirection.text("nenastaveno");
+        } else {
+            alarmOuter.removeClass("alarm_outer inactive");
+            alarmOuter.addClass("invisible");
+            alarmLoader.removeClass("invisible");
+        }
     } else {
         var station = myStations[myAlarm.code];
         var qualityClass = emission_idx[station.idx + 1];
@@ -301,7 +320,7 @@ function displayAlarm() {
         alarmLevel.removeClass("very_good good satisfactory acceptable bad very_bad").addClass(alarmClass);
         alarmLevelNumber.text(Math.abs(myAlarm.level));
         alarmLevelNumber.removeClass("very_good good satisfactory acceptable bad very_bad").addClass(alarmClass);
-        alarmToggle.removeClass("inactive");
+        alarmOuter.removeClass("inactive");
         if (myAlarm.level == -1 || myAlarm.level == 6) {
             alarmDirection.text("");
         } else if (myAlarm.level > 0) {
@@ -309,6 +328,9 @@ function displayAlarm() {
         } else {
             alarmDirection.text(" a lepší");
         }
+        alarmOuter.addClass("alarm_outer");
+        alarmOuter.removeClass("invisible inactive");
+        alarmLoader.addClass("invisible");
     }
 }
 

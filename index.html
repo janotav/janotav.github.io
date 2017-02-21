@@ -22,10 +22,60 @@
     .incomplete { background: #FFFFFF; color: #000000 }
     .undetermined { background: #CFCFCF; color: #000000 }
 
+    .very_bad_spinner {
+        border: 10px solid #671F20;
+        border-top: 10px solid #FFFFFF;
+    }
+
+    .bad_spinner {
+        border: 10px solid #ED1C24;
+        border-top: 10px solid #FFFFFF;
+    }
+
+    .acceptable_spinner {
+        border: 10px solid #FAA61A;
+        border-top: 10px solid #000000;
+    }
+
+    .satisfactory_spinner {
+        border: 10px solid #FFF200;
+        border-top: 10px solid #000000;
+    }
+
+    .good_spinner {
+        border: 10px solid #9BD3AE;
+        border-top: 10px solid #000000;
+    }
+
+    .incomplete_spinner {
+        border: 10px solid #FFFFFF;
+        border-top: 10px solid #000000;
+    }
+
+    .undetermined_spinner {
+        border: 10px solid #CFCFCF;
+        border-top: 10px solid #000000;
+    }
+
+    .small_spinner {
+        border-radius: 50%;
+        width: 12px;
+        height: 12px;
+        animation: spin 2s linear infinite;
+        position: absolute;
+        right: 20px;
+        top: 5px;
+    }
+
+    .very_good_spinner {
+        border: 10px solid #C7EAFB;
+        border-top: 10px solid #000000;
+    }
+
     .station {
         text-align:center;
         padding: 8px;
-
+        position: relative;
         border: 1px solid #000000;
         -moz-box-shadow: inset 6px 6px 6px rgba(255, 255, 255, .4), inset -6px -6px 6px rgba(0, 0, 0, .4);
         -webkit-box-shadow: inset 6px 6px 6px rgba(255, 255, 255, .4), inset -6px -6px 6px rgba(0, 0, 0, .4);
@@ -66,13 +116,14 @@
 
         position: fixed;
         width: 100%;
+        height: 237px;
         top: 0;
         left: 0;
         z-index: 999;
         background-color: #000000;
     }
 
-    .header_inner {
+    .alarm_outer {
         display: flex;
         flex-direction: row;
         padding-left: 10px;
@@ -140,59 +191,54 @@
     .nodata {
         padding: 3px;
     }
+
+    .loader {
+        width: 100%;
+        height: 300px;
+        padding-top: 50px;
+    }
+
+    .loader_spinner {
+        border: 10px solid black;
+        border-top: 10px solid lightgray;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        margin: 0 auto;
+        animation: spin 2s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
 </style>
 <body>
 <div id="header_outer" class="header_outer">
-    <div class="header_inner">
-        <div id="alarm_toggle" class="inactive">
+    <div id="alarm_loader" class="loader">
+        <div class="loader_spinner"></div>
+    </div>
+    <div id="alarm_outer" class="invisible">
+        <div id="alarm_toggle">
             <img src="img/alarm.png" class="alarm"/>
             <div class="alarm"><div id="alarm_level_number" class="alarm_inner"></div></div>
         </div>
         <div class="alarm_location">
             <div><span id="alarm_location"></span> <span id="alarm_value"></span></div>
-            <div>upozornění <span id="alarm_level"></span><span id="alarm_direction"></span></div>
+            <div>upozornění <span id="alarm_level"></span> <span id="alarm_direction"></span></div>
         </div>
     </div>
-    <div class="time">
-        Čas měření <span id="date"></span>
+    <div id="time_outer" class="invisible">
+        <div class="time">
+            Čas měření <span id="date"></span>
+        </div>
     </div>
 </div>
 <div id="header_place_holder" class="header_placer_holder"></div>
+<div id="loader" class="loader">
+    <div class="loader_spinner"></div>
+</div>
 <div id="stations" class="stations">
-    <!--
-    <div id="ALIBA" class="station good">Praha 4-Libuš <span id="ALIBA_distance" class="distance">2,2 km, Praha</span></div>
-    <div id="ALIBA_detail" class="detail invisible">
-        <div class="measurement very_good">
-            <div>Oxid siřičitý: 3 µg/m³</div>
-            <div><span class="limit">Velmi dobrá (0 - 25 µg/m³)</span></div>
-        </div>
-        <div class="measurement good">
-            <div>Oxid dusičitý: 33 µg/m³</div>
-            <div><span class="limit">Dobrá (25 - 50 µg/m³)</span></div>
-        </div>
-        <div class="measurement very_good">
-            <div>Oxid uhelnatý: 411 µg/m³</div>
-            <div><span class="limit">Velmi dobrá (0 - 1000 µg/m³)</span></div>
-        </div>
-        <div class="measurement good">
-            <div>Ozon: 38 µg/m³</div>
-            <div><span class="limit">Dobrá (33 - 65 µg/m³)</span></div>
-        </div>
-        <div class="measurement very_good">
-            <div>Prach PM10: 1 µg/m³</div>
-            <div><span class="limit">Velmi dobrá (0 - 20 µg/m³)</span></div>
-        </div>
-        <div class="alarm_panel good">
-            Nastav upozornění:
-            <div id="ALIBA_very_good" class="alarm_toggle very_good">1</div>
-            <div id="ALIBA_good" class="alarm_toggle good">|</div>
-            <div id="ALIBA_satisfactory" class="alarm_toggle satisfactory">3</div>
-            <div id="ALIBA_acceptable" class="alarm_toggle acceptable">4</div>
-            <div id="ALIBA_bad" class="alarm_toggle bad">5</div>
-            <div id="ALIBA_very_bad" class="alarm_toggle very_bad">6</div>
-        </div>
-    </div>
-    -->
 </div>
 </body>
 </html>
