@@ -59,7 +59,14 @@ if (navigator.geolocation) {
 }
 
 function initialize() {
-    loadMeta();
+    loadMeta().then(function () {
+        if (location.hash) {
+            var stationCode = location.hash.substring(1);
+            if (myStations[stationCode].name) {
+                toggleDetail(stationCode, true);
+            }
+        }
+    });
 
     $("#alarm_toggle").click(function () {
         if (typeof myAlarm !== 'undefined' && typeof myAlarm.code !== 'undefined') {
@@ -143,19 +150,34 @@ function addStation(stations, stationCode, station, regionName) {
     stations.append(detailDiv);
 
     stationDiv.click(function () {
-        if (typeof station.detail === 'undefined') {
-            stationSpinnerDiv.removeClass("invisible");
-            loadDetail(stationCode);
-        }
-        if (detailDiv.hasClass("invisible")) {
-            detailDiv.removeClass("invisible");
-        } else {
-            detailDiv.addClass("invisible");
-        }
+        toggleDetail(stationCode, false);
         return false;
     });
 
     updateDistance(stationCode);
+}
+
+function toggleDetail(stationCode, forceShow) {
+    var station = myStations[stationCode];
+    if (typeof station.detail === 'undefined') {
+        var stationDiv = $("#" + stationCode);
+        var stationSpinnerDiv = $("#" + stationCode + "_spinner");
+        stationSpinnerDiv.removeClass("invisible");
+        loadDetail(stationCode).then(function () {
+            if (forceShow) {
+                var header_place_holder = $("#header_place_holder");
+                $('html,body').animate({ 
+                    scrollTop: stationDiv.offset().top - header_place_holder.height() 
+                }, 'slow');
+            }            
+        });
+    }
+    var stationDetailDiv = $("#" + stationCode + "_detail");
+    if (forceShow || stationDetailDiv.hasClass("invisible")) {
+        stationDetailDiv.removeClass("invisible");
+    } else {
+        stationDetailDiv.addClass("invisible");
+    }
 }
 
 function limitDescription(measurement) {
@@ -410,8 +432,13 @@ messaging.onTokenRefresh(function() {
 });
 
 messaging.onMessage(function(payload) {
-    console.log("Message received", payload);
-    document.getElementById("message").innerHTML = payload.data.stationCode + ' is ' + payload.data.stationIdx;
+    console.log("Message received, reload alarm and meta", payload);
+
+    loadAlarm();
+    loadMeta().then(function () {
+        console.log('Load detail of the station in alarm');
+        toggleDetail(payload.data.stationCode, true);
+    });
 });
 
 function updateAlarm(alarm) {
@@ -453,7 +480,7 @@ function loadAlarm() {
 
 function loadMeta() {
     console.log('Retrieving meta data from the server');
-    $.ajax({
+    return $.ajax({
         url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/summary',
         method: 'GET',
         headers: {
@@ -462,12 +489,13 @@ function loadMeta() {
     }).done(function (meta) {
         console.log('Current server meta summary: ', meta);
         setMeta(meta);
+        return Promise.resolve(meta);
     });
 }
 
 function loadDetail(stationCode) {
     console.log('Retrieving station data from the server');
-    $.ajax({
+    return $.ajax({
         url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/summary',
         method: 'GET',
         data: {
@@ -480,8 +508,10 @@ function loadDetail(stationCode) {
     }).done(function (detail) {
         console.log('Station ' + stationCode + ' data: ', detail);
         setDetail(stationCode, detail);
+        return Promise.resolve(detail);
     }).fail(function (err) {
         console.log('Station ' + stationCode + ' error: ', err);
         setDetail(stationCode, []);
+        return Promise.reject(err);
     });
 }
