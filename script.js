@@ -247,11 +247,12 @@ function setDetail(stationCode, data) {
         // token not ready or not supported, don't display panel
         return;
     }
-    if (station.qualityClass === 'undetermined' || station.qualityClass === 'incomplete') {
-        // TODO: how to represent better/worse choice if there is no base to start from
-    } else {
-        addAlarmPanelToDetail(stationCode, detail);
+    if (station.qualityClass === 'undetermined') {
+        // station has no index, can't set alarms
+        return;
     }
+
+    addAlarmPanelToDetail(stationCode, detail);
 }
 
 function addAlarmPanelToDetails() {
@@ -278,17 +279,43 @@ function addAlarmPanelToDetail(stationCode, detail) {
         } else {
             var level = emission_idx.indexOf(alarmClass) - 1;
             alarmToggle.text(level);
-            if (level < emission_idx.indexOf(station.qualityClass) - 1) {
-                level = -level;
-            }
-            alarmToggle.click(function () {
-                updateAlarm({
-                    token: myToken,
-                    code: stationCode,
-                    level: level
+            if (station.qualityClass === "incomplete") {
+                // without current index, we cannot reliably decide if we want worse or better than
+                if (level <= emission_idx.indexOf("satisfactory") - 1) {
+                    // assume we are interested in "better than" if satisfactory and better is specified
+                    level = -level;
+                }
+                alarmToggle.click(function () {
+                    if (typeof myAlarm !== 'undefined' && myAlarm.code === stationCode && Math.abs(myAlarm.level) === Math.abs(level)) {
+                        // switch the direction if use click on the same button
+                        updateAlarm({
+                            token: myToken,
+                            code: stationCode,
+                            level: -myAlarm.level
+                        });
+                    } else {
+                        // use our best-guess based on target quality level
+                        updateAlarm({
+                            token: myToken,
+                            code: stationCode,
+                            level: level
+                        });
+                    }
+                    return false;
                 });
-                return false;
-            });
+            } else {
+                if (level < emission_idx.indexOf(station.qualityClass) - 1) {
+                    level = -level;
+                }
+                alarmToggle.click(function () {
+                    updateAlarm({
+                        token: myToken,
+                        code: stationCode,
+                        level: level
+                    });
+                    return false;
+                });
+            }
         }
         alarmPanelDiv.append(alarmToggle);
     });
