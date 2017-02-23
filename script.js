@@ -64,6 +64,7 @@ function initialize() {
             var stationCode = location.hash.substring(1);
             if (myStations[stationCode].name) {
                 toggleDetail(stationCode, true);
+                history.pushState("", document.title, window.location.pathname + window.location.search);
             }
         }
     });
