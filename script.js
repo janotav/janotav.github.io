@@ -62,8 +62,12 @@ function initialize() {
     loadMeta();
 
     $("#alarm_toggle").click(function () {
-        setAlarm({});
-        displayAlarm();
+        if (typeof myAlarm !== 'undefined' && typeof myAlarm.code !== 'undefined') {
+            updateAlarm({
+                token: myToken,
+                remove: true
+            });
+        }
         return false;
     });
 }
