@@ -59,6 +59,15 @@ if (navigator.geolocation) {
 }
 
 function initialize() {
+    if ('serviceWorker' in navigator) {
+        // service worker need in order for the app banner to appear
+        navigator.serviceWorker.register('/service-worker.js').then(function(registration) {
+            console.log('ServiceWorker registration successful with scope: ', registration.scope);
+        }).catch(function(err) {
+            console.log('ServiceWorker registration failed: ', err);
+        });
+    }
+
     loadMeta().then(function () {
         if (location.hash) {
             var stationCode = location.hash.substring(1);

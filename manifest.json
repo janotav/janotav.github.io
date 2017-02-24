@@ -9,5 +9,9 @@
     "src": "img/eco_green_factory_icon.png",
     "sizes": "610x610",
     "type": "image/png"
+  },{
+    "src": "img/eco_green_factory_icon_144x144.png",
+    "sizes": "144x144",
+    "type": "image/png"
   }]
 }
