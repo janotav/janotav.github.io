@@ -78,6 +78,38 @@ function initialize() {
         }
         return false;
     });
+
+    installPreventPullToReload();
+}
+
+function installPreventPullToReload() {
+    var preventRefresh = false;
+    var lastTouchY = 0;
+
+    function touchstartHandler(e) {
+        if (e.touches.length != 1) {
+            return;
+        }
+        lastTouchY = e.touches[0].clientY;
+        preventRefresh = window.pageYOffset == 0;
+    }
+
+    function touchmoveHandler(e) {
+        var touchY = e.touches[0].clientY;
+        var touchYDelta = touchY - lastTouchY;
+        lastTouchY = touchY;
+
+        if (preventRefresh) {
+            preventRefresh = false;
+            if (touchYDelta > 0) {
+                console.log('Prevent page reload');
+                e.preventDefault();
+            }
+        }
+    }
+
+    window.addEventListener('touchstart', touchstartHandler, {passive: false});
+    window.addEventListener('touchmove', touchmoveHandler, {passive: false});
 }
 
 function recalculateDistance() {
