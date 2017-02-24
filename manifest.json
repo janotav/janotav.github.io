@@ -4,5 +4,10 @@
   "start_url": "/index.html",
   "display": "standalone",
   "orientation": "portrait",
-  "gcm_sender_id": "103953800507"
+  "gcm_sender_id": "103953800507",
+  "icons": [{
+    "src": "img/eco_green_factory_icon.png",
+    "sizes": "610x610",
+    "type": "image/png"
+  }]
 }
