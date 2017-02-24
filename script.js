@@ -79,6 +79,8 @@ function initialize() {
         return false;
     });
 
+    $("#time_spin").click(reload);
+
     installPreventPullToReload();
 }
 
@@ -102,14 +104,40 @@ function installPreventPullToReload() {
         if (preventRefresh) {
             preventRefresh = false;
             if (touchYDelta > 0) {
-                console.log('Prevent page reload');
+                console.log('Prevent default page reload');
                 e.preventDefault();
+
+                console.log('Perform custom page reload');
+                reload();
             }
         }
     }
 
     window.addEventListener('touchstart', touchstartHandler, {passive: false});
     window.addEventListener('touchmove', touchmoveHandler, {passive: false});
+}
+
+function reload() {
+    var timeSpin = $("#time_spin");
+    
+    if (timeSpin.hasClass("fa-spin")) {
+        console.log('Reload discarded another reload running');
+        return;
+    }
+
+    if (timeSpin.hasClass("inactive")) {
+        console.log('Reload discarded due to quiet period');
+        return;
+    }
+
+    timeSpin.addClass("fa-spin");
+    loadMeta().then(function (done, fail) {
+        timeSpin.removeClass("fa-spin");
+        timeSpin.addClass("inactive");
+        window.setTimeout(function () {
+            timeSpin.removeClass("inactive");
+        }, 60000);
+    });
 }
 
 function recalculateDistance() {

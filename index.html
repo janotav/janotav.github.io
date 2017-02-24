@@ -2,6 +2,7 @@
 <head>
 <link rel="manifest" href="manifest.json">
 </head>
+<script src="https://use.fontawesome.com/dd6ad41192.js"></script>
 <script src="https://www.gstatic.com/firebasejs/3.6.9/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/3.6.9/firebase-messaging.js"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
@@ -173,6 +174,7 @@
     }
 
     .time {
+        display: inline-block;
         border-bottom: 1px solid #FFFFFF;
         margin: 10px;
         padding: 3px;
@@ -228,8 +230,11 @@
             <div>upozornění <span id="alarm_level"></span> <span id="alarm_direction"></span></div>
         </div>
     </div>
-    <div id="time_outer" class="time invisible">
-        Čas měření <span id="date"></span>
+    <div id="time_outer" class="invisible">
+        <div class="time">
+            Čas měření <span id="date"></span>
+        </div>
+        <i id="time_spin" class="fa fa-refresh fa-3x fa-fw"></i>
     </div>
 </div>
 <div id="header_place_holder" class="header_placer_holder"></div>
