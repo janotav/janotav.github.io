@@ -1,6 +1,7 @@
 <html>
 <head>
 <link rel="manifest" href="manifest.json">
+<meta name="viewport" content="user-scalable=no"/>
 </head>
 <script src="https://use.fontawesome.com/dd6ad41192.js"></script>
 <script src="https://www.gstatic.com/firebasejs/3.6.9/firebase-app.js"></script>
@@ -78,6 +79,7 @@
     }
 
     .station {
+        font-size: 30px;
         text-align:center;
         padding: 8px;
         position: relative;
@@ -89,6 +91,7 @@
 
     .measurement {
         padding: 5px;
+        font-size: 20px;
     }
 
     body {
@@ -104,6 +107,10 @@
         display: none;
     }
 
+    .search_invisible {
+        display: none;
+    }
+
     span.distance {
         display: block;
         font-size: 75%;
@@ -115,13 +122,18 @@
         opacity: 0.75;
     }
 
+    .header_inner {
+        height: 235px;
+        display: flex;
+        flex-direction: column;
+    }
+
     .header_outer {
         display: flex;
         flex-direction: column;
 
         position: fixed;
         width: 100%;
-        height: 237px;
         top: 0;
         left: 0;
         z-index: 999;
@@ -185,10 +197,6 @@
         font-size: 50px;
     }
 
-    .header_placer_holder {
-        height: 230px;
-    }
-
     div.stations {
         display: flex;
         flex-direction: column;
@@ -218,27 +226,81 @@
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
     }
+
+    div.menu_expander {
+        position: fixed;
+        bottom: 10px;
+        right: 15px;
+        padding: 10px 60px;
+        font-size: 75px;
+        background: black;
+        border-radius: 10px;
+    }
+
+    div.menu {
+        position: fixed;
+        bottom: 10px;
+        right: 160px;
+        font-size: 50px;
+    }
+
+    div.menu_item {
+        background: black;
+        padding: 20px 30px;
+        border: 1px solid darkgray;
+    }
+
+    div.search {
+        padding-left: 10px;
+        padding-bottom: 10px;
+    }
+
+    .search {
+        font-size: 50px;
+    }
+
+    input.search {
+        width: 50%;
+    }
+
+    i.search {
+        background: white;
+        color: black;
+        position: relative;
+        left: -50px;
+    }
+
+    /* make sure we can scroll content above menu expander */
+    .footer_place_holder {
+        height: 100px;
+    }
+
 </style>
 <body>
 <div id="header_outer" class="header_outer">
-    <div id="alarm_loader" class="loader invisible">
-        <div class="loader_spinner"></div>
+    <div class="header_inner">
+        <div id="alarm_loader" class="loader invisible">
+            <div class="loader_spinner"></div>
+        </div>
+        <div id="alarm_outer" class="invisible">
+            <div id="alarm_toggle">
+                <img src="img/alarm.png" class="alarm"/>
+                <div class="alarm"><div id="alarm_level_number" class="alarm_inner"></div></div>
+            </div>
+            <div class="alarm_location">
+                <div><span id="alarm_location"></span> <span id="alarm_value"></span></div>
+                <div>upozornění <span id="alarm_level"></span> <span id="alarm_direction"></span></div>
+            </div>
+        </div>
+        <div id="time_outer" class="invisible">
+            <div class="time">
+                Čas měření <span id="date"></span>
+            </div>
+            <i id="time_spin" class="fa fa-refresh fa-3x fa-fw"></i>
+        </div>
     </div>
-    <div id="alarm_outer" class="invisible">
-        <div id="alarm_toggle">
-            <img src="img/alarm.png" class="alarm"/>
-            <div class="alarm"><div id="alarm_level_number" class="alarm_inner"></div></div>
-        </div>
-        <div class="alarm_location">
-            <div><span id="alarm_location"></span> <span id="alarm_value"></span></div>
-            <div>upozornění <span id="alarm_level"></span> <span id="alarm_direction"></span></div>
-        </div>
-    </div>
-    <div id="time_outer" class="invisible">
-        <div class="time">
-            Čas měření <span id="date"></span>
-        </div>
-        <i id="time_spin" class="fa fa-refresh fa-3x fa-fw"></i>
+    <div id="search" class="search invisible">
+        <input id="search_input" type="text" placeholder="Jméno stanice" class="search"/><i id="search_close" class="fa fa-times search" aria-hidden="true"></i>
     </div>
 </div>
 <div id="header_place_holder" class="header_placer_holder"></div>
@@ -246,6 +308,13 @@
     <div class="loader_spinner"></div>
 </div>
 <div id="stations" class="stations">
+</div>
+<div class="footer_place_holder"></div>
+<div id="menu" class="menu invisible">
+    <div id="menu_search" class="menu_item">Vyhledání stanice</div>
+</div>
+<div id="menu_expander" class="menu_expander invisible">
+    <i class="fa fa-ellipsis-v" aria-hidden="true"></i>
 </div>
 </body>
 </html>

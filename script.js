@@ -10,6 +10,7 @@ var myAlarm;
 var myMeta;
 var myLocation;
 var myStations;
+var myFilter;
 
 var emission_types = {
     "NO2": "Oxid dusičitý",
@@ -96,6 +97,58 @@ function initialize() {
     $("#time_spin").click(reload);
 
     installPreventPullToReload();
+
+    recalculatePlaceHolder();
+
+    var menu = $("#menu");
+    var search = $("#search");
+    var searchInput = $("#search_input");
+
+    $("#menu_expander").click(function () {
+        menu.toggleClass("invisible");
+    });
+
+    $("#menu_search").click(function () {
+        search.removeClass("invisible");
+        menu.addClass("invisible");
+        searchInput.focus();
+        recalculatePlaceHolder();
+        filterChangeHandler();
+    });
+
+    $("#search_close").click(function () {
+        search.addClass("invisible");
+        recalculatePlaceHolder();
+        myFilter = undefined;
+        applyFilter();
+    });
+
+    searchInput.change(filterChangeHandler);
+}
+
+function filterChangeHandler() {
+    myFilter = $("#search_input").val();
+    applyFilter();
+}
+
+function applyFilter() {
+    Object.keys(myStations).forEach(function (stationCode) {
+        applyStationFilter($("#" + stationCode), $("#" + stationCode + "_detail"), myStations[stationCode]);
+    });
+}
+
+function applyStationFilter(stationDiv, stationDetailDiv, station) {
+    if (myFilter && ((station.name + ' ' + station.regionName).toLocaleLowerCase().indexOf(myFilter.toLocaleLowerCase()) < 0)) {
+        stationDiv.addClass("search_invisible");
+        stationDetailDiv.addClass("search_invisible");
+    } else {
+        stationDiv.removeClass("search_invisible");
+        stationDetailDiv.removeClass("search_invisible");
+    }
+}
+
+function recalculatePlaceHolder() {
+    $("#header_place_holder").css("height", $("#header_outer").height());
 }
 
 function installPreventPullToReload() {
@@ -234,6 +287,7 @@ function addStation(stations, stationCode, station, regionName) {
     });
 
     updateDistance(stationCode);
+    applyStationFilter(stationDiv, detailDiv, station);
 }
 
 function toggleDetail(stationCode, forceShow) {
@@ -417,6 +471,7 @@ function setMeta(meta) {
     myMeta = meta;
     
     $("#time_outer").removeClass("invisible");
+    $("#menu_expander").removeClass("invisible");
     $("#loader").remove();
 
     var stations = $("#stations");
