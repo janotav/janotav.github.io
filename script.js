@@ -359,29 +359,29 @@ function addAlarmPanelToDetail(stationCode, detail) {
                 // without current index, we cannot reliably decide if we want worse or better than
                 if (level <= emission_idx.indexOf("satisfactory") - 1) {
                     // assume we are interested in "better than" if satisfactory and better is specified
-                    level = -level;
+                    alarmToggle.addClass("quality_improvement");
                 }
                 alarmToggle.click(function () {
-                    if (typeof myAlarm !== 'undefined' && myAlarm.code === stationCode && Math.abs(myAlarm.level) === Math.abs(level)) {
-                        // switch the direction if use click on the same button
-                        updateAlarm({
-                            token: myToken,
-                            code: stationCode,
-                            level: -myAlarm.level
-                        });
+                    var targetLevel;
+                    if (alarmToggle.hasClass("quality_improvement")) {
+                        targetLevel = -level;
                     } else {
-                        // use our best-guess based on target quality level
-                        updateAlarm({
-                            token: myToken,
-                            code: stationCode,
-                            level: level
-                        });
+                        targetLevel = level;
+                    }
+                    updateAlarm({
+                        token: myToken,
+                        code: stationCode,
+                        level: targetLevel
+                    });
+                    if (level !== 1 && level !== 6) {
+                        alarmToggle.toggleClass("quality_improvement");
                     }
                     return false;
                 });
             } else {
                 if (level < emission_idx.indexOf(station.qualityClass) - 1) {
                     level = -level;
+                    alarmToggle.addClass("quality_improvement");
                 }
                 alarmToggle.click(function () {
                     updateAlarm({
@@ -392,6 +392,7 @@ function addAlarmPanelToDetail(stationCode, detail) {
                     return false;
                 });
             }
+
         }
         alarmPanelDiv.append(alarmToggle);
     });
@@ -495,6 +496,11 @@ function displayAlarm() {
         alarmDirection.text(" a horší");
     } else {
         alarmDirection.text(" a lepší");
+    }
+    if (myAlarm.level < 0) {
+        alarmLevelNumber.addClass("quality_improvement");
+    } else {
+        alarmLevelNumber.removeClass("quality_improvement");
     }
     alarmOuter.addClass("alarm_outer");
     alarmOuter.removeClass("invisible inactive");
