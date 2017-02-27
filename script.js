@@ -229,9 +229,15 @@ function addStation(stations, stationCode, station, regionName) {
 
 function toggleDetail(stationCode, forceShow) {
     var station = myStations[stationCode];
+    var stationSpinnerDiv = $("#" + stationCode + "_spinner");
+    if (!stationSpinnerDiv.hasClass("invisible")) {
+        // do nothing if already loading:
+        // - prevents loading twice
+        // - prevents closing once loaded
+        return;
+    }
     if (typeof station.detail === 'undefined') {
         var stationDiv = $("#" + stationCode);
-        var stationSpinnerDiv = $("#" + stationCode + "_spinner");
         stationSpinnerDiv.removeClass("invisible");
         loadDetail(stationCode).then(function () {
             if (forceShow) {
