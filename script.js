@@ -51,11 +51,14 @@ var qualityLabel = {
     "very_bad": "Velmi špatná"
 };
 
-if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(function (position) {
-        myLocation = position;
-        recalculateDistance();
-    });
+function loadPosition() {
+    if (navigator.geolocation) {
+        console.log('Retrieving current position');
+        navigator.geolocation.getCurrentPosition(function (position) {
+            myLocation = position;
+            recalculateDistance();
+        });
+    }
 }
 
 function initialize() {
@@ -67,6 +70,8 @@ function initialize() {
             console.log('ServiceWorker registration failed: ', err);
         });
     }
+
+    loadPosition();
 
     loadMeta().then(function () {
         if (location.hash) {
@@ -138,6 +143,10 @@ function reload() {
         console.log('Reload discarded due to quiet period');
         return;
     }
+
+    loadPosition();
+
+    loadAlarm();
 
     timeSpin.addClass("fa-spin");
     loadMeta().then(function (done, fail) {
