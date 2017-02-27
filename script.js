@@ -423,7 +423,9 @@ function setMeta(meta) {
     stations.empty();
     myStations = {};
 
-    var date = new Date(Date.parse(meta.date));
+    // convert to ISO format (original not supported by firefox)
+    var dateIso = meta.date.replace(/ UTC$/, 'Z').replace(/ /,'T');
+    var date = new Date(Date.parse(dateIso));
     $("#date").text(date.toLocaleString("cs-CZ"));
 
     var regionNames = Object.keys(meta.regions);
