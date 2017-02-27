@@ -409,6 +409,11 @@ function addAlarmPanelToDetail(stationCode, detail) {
 }
 
 function setMeta(meta) {
+    if (typeof myMeta !== 'undefined' && myMeta.date === meta.date) {
+        // do nothing unless data changed (prevent collapsing on reload without data change)
+        return;
+    }
+
     myMeta = meta;
     
     $("#time_outer").removeClass("invisible");
