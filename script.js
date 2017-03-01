@@ -11,6 +11,8 @@ var myMeta;
 var myLocation;
 var myStations;
 var myFilter;
+var db;
+var recentPlaceHistory = [];
 
 var emission_types = {
     "NO2": "Oxid dusičitý",
@@ -52,17 +54,57 @@ var qualityLabel = {
     "very_bad": "Velmi špatná"
 };
 
-function loadPosition() {
+function loadPosition(store) {
     if (navigator.geolocation) {
         console.log('Retrieving current position');
         navigator.geolocation.getCurrentPosition(function (position) {
-            myLocation = position;
-            recalculateDistance();
+            setPosition(position, store);
+        });
+    }
+}
+
+function setPosition(position, store) {
+    myLocation = position;
+    if (store) {
+        storeCurrentPlace();
+    }
+    recalculateDistance();
+    displayLocation();
+}
+
+function displayLocation() {
+    if (typeof myLocation !== 'undefined') {
+        loadLocationName(myLocation.coords.latitude, myLocation.coords.longitude).then(function (name) {
+            $("#location_name").text(name);
         });
     }
 }
 
 function initialize() {
+    if ('indexedDB' in window) {
+        var idb = window.indexedDB;
+
+        var request = idb.open("BuenosAires", 3);
+        request.onsuccess = function (event) {
+            db = event.target.result;
+            restorePlaceHistory();
+            restoreCurrentPlace();
+        };
+        request.onupgradeneeded = function (event) {
+            console.info("IDB schema upgrade");
+            var store = event.target.result.createObjectStore("place", { keyPath: "id" });
+            store.add({id: "recent", items: []});
+            store.add({id: "current", item: {}});
+        };
+        request.onerror = function (event) {
+            console.error("Failed to open IDB database BuenosAires: ", event);
+            loadPosition(false);
+        }
+    } else {
+        // no storage, assume current location
+        loadPosition(false);
+    }
+
     if ('serviceWorker' in navigator) {
         // service worker need in order for the app banner to appear
         navigator.serviceWorker.register('/service-worker.js').then(function(registration) {
@@ -71,8 +113,6 @@ function initialize() {
             console.log('ServiceWorker registration failed: ', err);
         });
     }
-
-    loadPosition();
 
     loadMeta().then(function () {
         if (location.hash) {
@@ -124,6 +164,165 @@ function initialize() {
     });
 
     searchInput.change(filterChangeHandler);
+
+    $("#location_picker_navigation").click(toggleLocationPage);
+    $("#location").click(toggleLocationPage);
+
+    var locationPickerCurrent = $("#location_picker_current");
+    if (navigator.geolocation) {
+        locationPickerCurrent.click(function() {
+            loadPosition(true);
+            toggleLocationPage();
+        });
+    } else {
+        locationPickerCurrent.addClass("invisible");
+    }
+
+    var locationPickerInput = $("#location_picker_input");
+    var locationPickerSearch = $("#location_picker_search");
+    var locationPickerResult = $("#location_picker_result");
+    locationPickerInput.change(function () {
+        locationPickerSearch.removeClass("invisible");
+        searchPlaces(locationPickerInput.val()).then(function (places) {
+            locationPickerSearch.addClass("invisible");
+            locationPickerResult.removeClass("invisible");
+            var locationPickerItems = $("#location_picker_items");
+            locationPickerItems.empty();
+            places.forEach(function (place) {
+                locationPickerItems.append(createItemPickerItem(place, true));
+            });
+        });
+    });
+}
+
+function selectPlace(place, history) {
+    return getPlaceLocation(place.id).then(function (coords) {
+        if (history) {
+            addPlaceHistory(place);
+        }
+        setPosition({
+            coords: {
+                latitude: coords.lat,
+                longitude: coords.lng
+            },
+            custom: true
+        }, true);
+        toggleLocationPage();
+        return place;
+    });
+}
+
+function createItemPickerItem(place, history, callback) {
+    var itemDiv = $("<div class='location_picker_item'/>");
+    var placeDiv = $("<div/>");
+    placeDiv.text(place.name.replace(/(.*),[^,]*/, "$1"));
+    var refresh = $("<i class='fa fa-refresh fa-spin fa-fw invisible'/>");
+    placeDiv.append(refresh);
+    itemDiv.append(placeDiv);
+    var regionDiv = $("<div class='location_picker_region'/>");
+    regionDiv.text(place.name.replace(/.*,([^,]*)$/, "$1"));
+    itemDiv.append(regionDiv);
+    itemDiv.click(function () {
+        refresh.removeClass("invisible");
+        selectPlace(place, history).then(function () {
+            refresh.addClass("invisible");
+            if (typeof callback === 'function') {
+                callback();
+            }
+        });
+    });
+    return itemDiv;
+}
+
+function addPlaceHistory(place) {
+
+    function prependPlace() {
+        recentItems.prepend(itemDiv);
+        var idx = recentPlaceHistory.findIndex(function (item) {
+            return item.id === place.id;
+        });
+        if (idx >= 0) {
+            recentPlaceHistory.splice(idx, 1);
+        }
+        recentPlaceHistory.splice(0, 0, place);
+        storePlaceHistory();
+    }
+
+    var recentItems = $("#location_picker_recent_items");
+    recentItems.children().slice(4).remove();
+    recentPlaceHistory.splice(4);
+
+    var itemDiv = createItemPickerItem(place, false, function () {
+        // modify recent list when select is done to avoid flicker
+        prependPlace();
+    });
+    prependPlace();
+}
+
+function restorePlaceHistory() {
+    var tx = db.transaction(["place"], "readonly", 1000);
+    var req = tx.objectStore("place").get("recent");
+    req.onsuccess = function (event) {
+        event.target.result.items.reverse().forEach(addPlaceHistory);
+    };
+    req.onerror = function (event) {
+        console.error("Failed to retrieved place history", event);
+    };
+}
+
+function storePlaceHistory() {
+    if (db) {
+        var tx = db.transaction(["place"], "readwrite", 1000);
+        var req = tx.objectStore("place").put({id: "recent", items: recentPlaceHistory});
+        req.onerror = function (event) {
+            console.error("Failed to write place history", event);
+        }
+    }
+}
+
+function restoreCurrentPlace() {
+    var tx = db.transaction(["place"], "readonly", 1000);
+    var req = tx.objectStore("place").get("current");
+    req.onsuccess = function (event) {
+        if (event.target.result.item.custom === true) {
+            // explicit coordinates: restore them
+            setPosition(event.target.result.item, false);
+        } else {
+            // load current position
+            loadPosition(false);
+        }
+    };
+    req.onerror = function (event) {
+        console.error("Failed to retrieved current place", event);
+        loadPosition(false);
+    };
+}
+
+function storeCurrentPlace() {
+    if (db) {
+        var current = {};
+        if (myLocation.custom) {
+            // only store/restore custom coordinates
+            current.custom = true;
+            current.coords = {
+                latitude: myLocation.coords.latitude,
+                longitude: myLocation.coords.longitude
+            };
+        }
+        var tx = db.transaction(["place"], "readwrite", 1000);
+        var req = tx.objectStore("place").put({id: "current", item: current});
+        req.onsuccess = function (event) {
+            console.log("Stored current position: ", current);
+        };
+        req.onerror = function (event) {
+            console.error("Failed to write current position: ", event);
+        };
+    }
+}
+
+function toggleLocationPage() {
+    $("#location_page").toggleClass("invisible");
+    $("#main_page").toggleClass("invisible");
 }
 
 function filterChangeHandler() {
@@ -197,7 +396,10 @@ function reload() {
         return;
     }
 
-    loadPosition();
+    if (typeof myLocation === "undefined" || myLocation.custom !== true) {
+        // reload position only if custom coordinates are not set
+        loadPosition(false);
+    }
 
     loadAlarm();
 
@@ -472,6 +674,7 @@ function setMeta(meta) {
     
     $("#time_outer").removeClass("invisible");
     $("#menu_expander").removeClass("invisible");
+    $("#location").removeClass("invisible");
     $("#loader").remove();
 
     var stations = $("#stations");
@@ -660,38 +863,149 @@ function loadAlarm() {
 
 function loadMeta() {
     console.log('Retrieving meta data from the server');
-    return $.ajax({
-        url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/summary',
-        method: 'GET',
-        headers: {
-            'x-api-key': 'api_key_public_access'
-        }
-    }).done(function (meta) {
-        console.log('Current server meta summary: ', meta);
-        setMeta(meta);
-        return Promise.resolve(meta);
+    return new Promise(function (resolve, reject) {
+        $.ajax({
+            url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/summary',
+            method: 'GET',
+            headers: {
+                'x-api-key': 'api_key_public_access'
+            }
+        }).done(function (meta) {
+            console.log('Current server meta summary: ', meta);
+            setMeta(meta);
+            resolve(meta);
+        }).catch(function (err) {
+            console.error('Failed to retrieve meta summary: ', err);
+            reject(err);
+        });
     });
 }
 
 function loadDetail(stationCode) {
     console.log('Retrieving station data from the server');
-    return $.ajax({
-        url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/summary',
-        method: 'GET',
-        data: {
-            station: stationCode,
-            date: myMeta.date
-        },
-        headers: {
-            'x-api-key': 'api_key_public_access'
+    return new Promise(function (resolve, reject) {
+        $.ajax({
+            url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/summary',
+            method: 'GET',
+            data: {
+                station: stationCode,
+                date: myMeta.date
+            },
+            headers: {
+                'x-api-key': 'api_key_public_access'
+            }
+        }).done(function (detail) {
+            console.log('Station ' + stationCode + ' data: ', detail);
+            setDetail(stationCode, detail);
+            resolve(detail);
+        }).fail(function (err) {
+            console.error('Station ' + stationCode + ' error: ', err);
+            setDetail(stationCode, []);
+            reject(err);
+        });
+    });
+}
+
+function findAddressComponent(components, type) {
+    var component = components.find(function (item) {
+        var idx = item.types.findIndex(function (itemType) {
+            return type === itemType;
+        });
+        return idx >= 0;
+    });
+    return component;
+}
+
+function collectAddress(components, fields) {
+    var address = "";
+    var count = 0;
+    fields.forEach(function (field) {
+        if (count == 2) {
+            return;
         }
-    }).done(function (detail) {
-        console.log('Station ' + stationCode + ' data: ', detail);
-        setDetail(stationCode, detail);
-        return Promise.resolve(detail);
-    }).fail(function (err) {
-        console.log('Station ' + stationCode + ' error: ', err);
-        setDetail(stationCode, []);
-        return Promise.reject(err);
+        var component = findAddressComponent(components, field);
+        if (!component) {
+            return;
+        }
+
+        if (address.indexOf(component.short_name) >= 0) {
+            // don't duplicate (e.g. Praha 4, Praha)
+            return;
+        }
+
+        if (++count > 1) {
+            address += ", ";
+        }
+        address += component.short_name;
+    });
+    return address;
+}
+
+function getPlaceLocation(id) {
+    console.log("Perform place location query: ", name);
+    return new Promise(function (resolve, reject) {
+        $.ajax({
+            url: "https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/place/detail",
+            method: "GET",
+            headers: {
+                "x-api-key": "api_key_public_access"
+            },
+            data: {
+                id: id
+            }
+        }).done(function (places) {
+            console.log("Place location result: ", places);
+            resolve(places);
+        }).catch(function (err) {
+            console.error("Place loction error: ", err);
+            reject(err);
+        });
+    });
+}
+
+function searchPlaces(name) {
+    console.log("Perform search place query: ", name);
+    return new Promise(function (resolve, reject) {
+        $.ajax({
+            url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/place',
+            method: 'GET',
+            headers: {
+                'x-api-key': 'api_key_public_access'
+            },
+            data: {
+                name: name
+            }
+        }).done(function (places) {
+            console.log("Place search result: ", places);
+            resolve(places);
+        }).catch(function (err) {
+            console.error("Place search error: ", err);
+            resolve([]);
+        });
+    });
+}
+
+function loadLocationName(lat, lon) {
+    return new Promise(function (resolve, reject) {
+        console.log("Perform geocode query: ", name);
+        $.ajax({
+            url: 'https://maps.googleapis.com/maps/api/geocode/json',
+            method: 'GET',
+            data: {
+                latlng: lat+','+lon,
+                language: 'cs'
+            }
+        }).done(function (result) {
+            if (result.status === "OK") {
+                var address = collectAddress(result.results[0].address_components, ["neighborhood", "sublocality", "locality"]);
+                resolve(address);
+            } else {
+                console.error("Negative response for location coordinates", result);
+                reject(result.status);
+            }
+        }).fail(function (err) {
+            console.error("Failed to resolve location coordinates", err);
+            reject(err);
+        });
     });
 }

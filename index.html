@@ -15,6 +15,14 @@
 </script>
 <style media="screen" type="text/css">
 
+    html {
+        font-size: 50px;
+    }
+
+    input {
+        font-size: 1.1em;
+    }
+
     .very_bad { background:  #671F20; color: #FFFFFF }
     .bad { background: #ED1C24; color: #FFFFFF }
     .acceptable { background: #FAA61A; color: #000000 }
@@ -136,7 +144,7 @@
         width: 100%;
         top: 0;
         left: 0;
-        z-index: 999;
+        z-index: 2;
         background-color: #000000;
     }
 
@@ -144,7 +152,6 @@
         display: flex;
         flex-direction: row;
         padding-left: 10px;
-        font-size: 50px;
     }
 
     .alarm_location {
@@ -179,14 +186,12 @@
         flex-direction: row;
         justify-content: space-between;
         align-items: center;
-        font-size: 50px;
         padding: 10px;
     }
 
     .alarm_toggle {
         padding-left: 15px;
         padding-right: 15px;
-        font-size: 50px;
     }
 
     .time {
@@ -194,7 +199,6 @@
         border-bottom: 1px solid #FFFFFF;
         margin: 10px;
         padding: 3px;
-        font-size: 50px;
     }
 
     div.stations {
@@ -241,7 +245,6 @@
         position: fixed;
         bottom: 10px;
         right: 160px;
-        font-size: 50px;
     }
 
     div.menu_item {
@@ -253,10 +256,6 @@
     div.search {
         padding-left: 10px;
         padding-bottom: 10px;
-    }
-
-    .search {
-        font-size: 50px;
     }
 
     input.search {
@@ -275,46 +274,134 @@
         height: 100px;
     }
 
+    div.location_page {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 3;
+        background: black;
+    }
+
+    div.location {
+        position: fixed;
+        bottom: 15px;
+        left: 20px;
+        padding: 20px 20px;
+        background: black;
+        border-radius: 10px;
+    }
+
+    div.location_picker {
+        padding-left: 15px;
+    }
+
+    .location_picker_navigation {
+        border-bottom: solid 2px white;
+        margin-top: 30px;
+        margin-bottom: 10px;
+    }
+
+    .location_picker_header {
+        padding-top: 0.5em;
+    }
+
+    .location_picker_current {
+        padding-top: 1em;
+    }
+
+    .location_picker_section {
+        border-bottom: solid 1px white;
+        padding-top: 1em;
+    }
+
+    .location_picker_legend {
+        font-size: 75%;
+        opacity: 0.75;
+        font-style: italic;
+    }
+
+    .location_picker_region {
+        font-size: 66%;
+        opacity: 0.75;
+    }
+
+    .location_picker_item {
+        border-top: solid 1px darkgray;
+    }
+
 </style>
 <body>
-<div id="header_outer" class="header_outer">
-    <div class="header_inner">
-        <div id="alarm_loader" class="loader invisible">
-            <div class="loader_spinner"></div>
+<div id="main_page">
+    <div id="header_outer" class="header_outer">
+        <div class="header_inner">
+            <div id="alarm_loader" class="loader invisible">
+                <div class="loader_spinner"></div>
+            </div>
+            <div id="alarm_outer" class="invisible">
+                <div id="alarm_toggle">
+                    <img src="img/alarm.png" class="alarm"/>
+                    <div class="alarm"><div id="alarm_level_number" class="alarm_inner"></div></div>
+                </div>
+                <div class="alarm_location">
+                    <div><span id="alarm_location"></span> <span id="alarm_value"></span></div>
+                    <div>upozornění <span id="alarm_level"></span> <span id="alarm_direction"></span></div>
+                </div>
+            </div>
+            <div id="time_outer" class="invisible">
+                <div class="time">
+                    Čas měření <span id="date"></span>
+                </div>
+                <i id="time_spin" class="fa fa-refresh fa-fw"></i>
+            </div>
         </div>
-        <div id="alarm_outer" class="invisible">
-            <div id="alarm_toggle">
-                <img src="img/alarm.png" class="alarm"/>
-                <div class="alarm"><div id="alarm_level_number" class="alarm_inner"></div></div>
-            </div>
-            <div class="alarm_location">
-                <div><span id="alarm_location"></span> <span id="alarm_value"></span></div>
-                <div>upozornění <span id="alarm_level"></span> <span id="alarm_direction"></span></div>
-            </div>
-        </div>
-        <div id="time_outer" class="invisible">
-            <div class="time">
-                Čas měření <span id="date"></span>
-            </div>
-            <i id="time_spin" class="fa fa-refresh fa-3x fa-fw"></i>
+        <div id="search" class="search invisible">
+            <input id="search_input" type="text" placeholder="Jméno stanice" class="search"/><i id="search_close" class="fa fa-times search" aria-hidden="true"></i>
         </div>
     </div>
-    <div id="search" class="search invisible">
-        <input id="search_input" type="text" placeholder="Jméno stanice" class="search"/><i id="search_close" class="fa fa-times search" aria-hidden="true"></i>
+    <div id="header_place_holder" class="header_placer_holder"></div>
+    <div id="loader" class="loader">
+        <div class="loader_spinner"></div>
+    </div>
+    <div id="stations" class="stations">
+    </div>
+    <div class="footer_place_holder"></div>
+    <div id="location" class="location invisible">
+        <i class="fa fa-crosshairs" aria-hidden="true"></i>
+        <span id="location_name"></span>
+    </div>
+    <div id="menu" class="menu invisible">
+        <div id="menu_search" class="menu_item">Vyhledání stanice</div>
+    </div>
+    <div id="menu_expander" class="menu_expander invisible">
+        <i class="fa fa-ellipsis-v" aria-hidden="true"></i>
     </div>
 </div>
-<div id="header_place_holder" class="header_placer_holder"></div>
-<div id="loader" class="loader">
-    <div class="loader_spinner"></div>
-</div>
-<div id="stations" class="stations">
-</div>
-<div class="footer_place_holder"></div>
-<div id="menu" class="menu invisible">
-    <div id="menu_search" class="menu_item">Vyhledání stanice</div>
-</div>
-<div id="menu_expander" class="menu_expander invisible">
-    <i class="fa fa-ellipsis-v" aria-hidden="true"></i>
+<div id="location_page" class="location_page invisible">
+    <div id="location_picker" class="location_picker">
+        <div id="location_picker_navigation" class="location_picker_navigation">
+            <i class="fa fa-arrow-left" aria-hidden="true"></i> Návrat
+        </div>
+        <div class="location_picker_header">
+            <div style="display: inline-flex; flex-direction: column;">
+                <input id="location_picker_input" class="location_picker" type="text" placeholder="Jméno obce"/>
+                <div style="display: flex; justify-content: space-between">
+                    <div class="location_picker_legend">Zadejte název obce</div>
+                    <img src="img/powered_by_google.png" alt="powered by Google"/>
+                </div>
+            </div>
+            <i class="fa fa-search" aria-hidden="true"></i>
+            <i id="location_picker_search" class="fa fa-refresh fa-spin fa-fw invisible"></i>
+        </div>
+        <div id="location_picker_result" class="location_picker_section location_picker_legend invisible">Výsledky hledání</div>
+        <div id="location_picker_items">
+        </div>
+        <div id="location_picker_current" class="location_picker_current"><i class="fa fa-crosshairs" aria-hidden="true"></i> Aktuální pozice</div>
+        <div class="location_picker_section location_picker_legend">Předchozí lokace</div>
+        <div id="location_picker_recent_items">
+        </div>
+    </div>
 </div>
 </body>
 </html>
