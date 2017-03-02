@@ -9,6 +9,7 @@ var myToken;
 var myAlarm;
 var myMeta;
 var myLocation;
+var myLocationJitter;
 var myStations;
 var myFilter;
 var db;
@@ -65,10 +66,23 @@ function loadPosition(store) {
 
 function setPosition(position, store) {
     myLocation = position;
+    var jitter = false;
+    var difference;
+    if (typeof myLocationJitter !== "undefined") {
+        difference = calculateDistance(myLocationJitter.latitude, myLocationJitter.longitude);
+        console.log("Position difference: ", difference);
+        jitter = difference < 0.5;
+    }
+    if (jitter) {
+        console.log("Position difference negligible, distance not recalculated");
+    } else {
+        // position difference is more than negligible, update distance (prevent flicker otherwise)
+        myLocationJitter = myLocation.coords;
+        recalculateDistance();
+    }
     if (store) {
         storeCurrentPlace();
     }
-    recalculateDistance();
     displayLocation();
 }
 
