@@ -385,7 +385,7 @@ function applyStationFilter(stationDiv, stationDetailDiv, station) {
 }
 
 function recalculatePlaceHolder() {
-    $("#header_place_holder").css("height", $("#header_outer").height());
+    $("#header_place_holder").css("height", $("#header_outer").height() - parseInt($("body").css('margin')));
 }
 
 function installPreventPullToReload() {
@@ -535,7 +535,7 @@ function toggleDetail(stationCode, forceShow) {
     function scrollTo() {
         if (forceShow) {
             $('html,body').animate({
-                scrollTop: $("#" + stationCode).offset().top - $("#header_place_holder").height()
+                scrollTop: $("#" + stationCode).offset().top - $("#header_place_holder").height() - parseInt($("body").css('margin'))
             }, 'slow');
         }
     }
