@@ -232,19 +232,23 @@
     }
 
     div.menu_expander {
-        position: fixed;
-        bottom: 10px;
-        right: 15px;
         padding: 10px 60px;
         font-size: 75px;
         background: black;
         border-radius: 10px;
+        align-self: flex-end;
     }
 
     div.menu {
         position: fixed;
         bottom: 10px;
-        right: 160px;
+        right: 15px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    div.menu_items {
+        padding-bottom: 2px;
     }
 
     div.menu_item {
@@ -286,7 +290,7 @@
 
     div.location {
         position: fixed;
-        bottom: 15px;
+        bottom: 10px;
         left: 20px;
         padding: 20px 20px;
         background: black;
@@ -371,11 +375,13 @@
         <i class="fa fa-crosshairs" aria-hidden="true"></i>
         <span id="location_name"></span>
     </div>
-    <div id="menu" class="menu invisible">
-        <div id="menu_search" class="menu_item">Vyhledání stanice</div>
-    </div>
-    <div id="menu_expander" class="menu_expander invisible">
-        <i class="fa fa-ellipsis-v" aria-hidden="true"></i>
+    <div class="menu">
+        <div id="menu_items" class="menu_items invisible">
+            <div id="menu_search" class="menu_item">Vyhledání stanice</div>
+        </div>
+        <div id="menu_expander" class="menu_expander invisible">
+            <i class="fa fa-ellipsis-v" aria-hidden="true"></i>
+        </div>
     </div>
 </div>
 <div id="location_page" class="location_page invisible">

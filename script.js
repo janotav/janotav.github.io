@@ -140,17 +140,17 @@ function initialize() {
 
     recalculatePlaceHolder();
 
-    var menu = $("#menu");
+    var menu_items = $("#menu_items");
     var search = $("#search");
     var searchInput = $("#search_input");
 
     $("#menu_expander").click(function () {
-        menu.toggleClass("invisible");
+        menu_items.toggleClass("invisible");
     });
 
     $("#menu_search").click(function () {
         search.removeClass("invisible");
-        menu.addClass("invisible");
+        menu_items.addClass("invisible");
         searchInput.focus();
         recalculatePlaceHolder();
         filterChangeHandler();
