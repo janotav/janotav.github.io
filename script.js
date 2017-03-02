@@ -14,6 +14,7 @@ var myStations;
 var myFilter;
 var db;
 var recentPlaceHistory = [];
+var busyLock = false;
 
 var emission_types = {
     "NO2": "Oxid dusičitý",
@@ -184,21 +185,24 @@ function initialize() {
 
     var locationPickerCurrent = $("#location_picker_current");
     if (navigator.geolocation) {
-        locationPickerCurrent.click(function() {
+        // we assume position loading is so quick we don't need progress indication
+        // the lock ensures we don't execute when others are running (rather than vice-versa)
+        locationPickerCurrent.click(busyEnter(function() {
+            busyLeave();
             loadPosition(true);
             toggleLocationPage();
-        });
+        }));
     } else {
         locationPickerCurrent.addClass("invisible");
     }
 
     var locationPickerInput = $("#location_picker_input");
     var locationPickerSearch = $("#location_picker_search");
+    var locationPickerRunning = $("#location_picker_running");
     var locationPickerResult = $("#location_picker_result");
-    locationPickerInput.change(function () {
-        locationPickerSearch.removeClass("invisible");
+    var searchHandler = busyEnter(function () {
         searchPlaces(locationPickerInput.val()).then(function (places) {
-            locationPickerSearch.addClass("invisible");
+            busyLeave(locationPickerRunning);
             locationPickerResult.removeClass("invisible");
             var locationPickerItems = $("#location_picker_items");
             locationPickerItems.empty();
@@ -206,7 +210,9 @@ function initialize() {
                 locationPickerItems.append(createItemPickerItem(place, true));
             });
         });
-    });
+    }, locationPickerRunning);
+    locationPickerInput.change(searchHandler);
+    locationPickerSearch.click(searchHandler);
 }
 
 function selectPlace(place, history) {
@@ -226,6 +232,25 @@ function selectPlace(place, history) {
     });
 }
 
+function busyEnter(callback, progressElement) {
+    return function () {
+        if (!busyLock) {
+            if (typeof progressElement !== "undefined") {
+                progressElement.removeClass("invisible");
+            }
+            busyLock = true;
+            callback();
+        }
+    }
+}
+
+function busyLeave(progressElement) {
+    busyLock = false;
+    if (typeof progressElement !== "undefined") {
+        progressElement.addClass("invisible");
+    }
+}
+
 function createItemPickerItem(place, history, callback) {
     var itemDiv = $("<div class='location_picker_item'/>");
     var placeDiv = $("<div/>");
@@ -236,15 +261,14 @@ function createItemPickerItem(place, history, callback) {
     var regionDiv = $("<div class='location_picker_region'/>");
     regionDiv.text(place.name.replace(/.*,([^,]*)$/, "$1"));
     itemDiv.append(regionDiv);
-    itemDiv.click(function () {
-        refresh.removeClass("invisible");
+    itemDiv.click(busyEnter(function () {
         selectPlace(place, history).then(function () {
-            refresh.addClass("invisible");
+            busyLeave(refresh);
             if (typeof callback === 'function') {
                 callback();
             }
         });
-    });
+    }, refresh));
     return itemDiv;
 }
 
