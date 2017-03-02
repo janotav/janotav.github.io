@@ -771,17 +771,11 @@ function displayAlarm() {
         return;
     }
 
-    var station = myStations[myAlarm.code];
-    var qualityClass = emission_idx[station.idx + 1];
     var alarmClass = emission_idx[Math.abs(myAlarm.level) + 1];
-    alarmLocation.text(station.name);
-    alarmValue.text(qualityLabel[qualityClass]);
-    alarmValue.removeClass("undetermined incomplete very_good good satisfactory acceptable bad very_bad").addClass(qualityClass);
     alarmLevel.text(qualityLabel[alarmClass]);
     alarmLevel.removeClass("very_good good satisfactory acceptable bad very_bad").addClass(alarmClass);
     alarmLevelNumber.text(Math.abs(myAlarm.level));
     alarmLevelNumber.removeClass("very_good good satisfactory acceptable bad very_bad").addClass(alarmClass);
-    alarmOuter.removeClass("inactive");
     if (myAlarm.level == -1 || myAlarm.level == 6) {
         alarmDirection.text("");
     } else if (myAlarm.level > 0) {
@@ -797,6 +791,19 @@ function displayAlarm() {
     alarmOuter.addClass("alarm_outer");
     alarmOuter.removeClass("invisible inactive");
     alarmLoader.remove();
+
+    var station = myStations[myAlarm.code];
+    if (typeof station === "undefined") {
+        console.error("Alarm references unknown station: ", myAlarm.code);
+        alarmLocation.text("neznámá stanice");
+        alarmValue.text("");
+        return;
+    }
+
+    var qualityClass = emission_idx[station.idx + 1];
+    alarmLocation.text(station.name);
+    alarmValue.text(qualityLabel[qualityClass]);
+    alarmValue.removeClass("undetermined incomplete very_good good satisfactory acceptable bad very_bad").addClass(qualityClass);
 }
 
 const messaging = firebase.messaging();
