@@ -507,6 +507,15 @@ function addStation(stations, stationCode, station, regionName) {
 }
 
 function toggleDetail(stationCode, forceShow) {
+
+    function scrollTo() {
+        if (forceShow) {
+            $('html,body').animate({
+                scrollTop: $("#" + stationCode).offset().top - $("#header_place_holder").height()
+            }, 'slow');
+        }
+    }
+
     var station = myStations[stationCode];
     var stationSpinnerDiv = $("#" + stationCode + "_spinner");
     if (!stationSpinnerDiv.hasClass("invisible")) {
@@ -516,16 +525,11 @@ function toggleDetail(stationCode, forceShow) {
         return;
     }
     if (typeof station.detail === 'undefined') {
-        var stationDiv = $("#" + stationCode);
         stationSpinnerDiv.removeClass("invisible");
-        loadDetail(stationCode).then(function () {
-            if (forceShow) {
-                var header_place_holder = $("#header_place_holder");
-                $('html,body').animate({ 
-                    scrollTop: stationDiv.offset().top - header_place_holder.height() 
-                }, 'slow');
-            }            
-        });
+        // scroll after  detail is loaded to avoid flickr
+        loadDetail(stationCode).then(scrollTo);
+    } else {
+        scrollTo();
     }
     var stationDetailDiv = $("#" + stationCode + "_detail");
     if (forceShow || stationDetailDiv.hasClass("invisible")) {
