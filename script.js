@@ -216,20 +216,35 @@ function initialize() {
 }
 
 function selectPlace(place, history) {
-    return getPlaceLocation(place.id).then(function (coords) {
+
+    function selectPlace_() {
         if (history) {
             addPlaceHistory(place);
         }
         setPosition({
             coords: {
-                latitude: coords.lat,
-                longitude: coords.lng
+                latitude: place.coords.lat,
+                longitude: place.coords.lng
             },
             custom: true
         }, true);
         toggleLocationPage();
-        return place;
-    });
+    }
+    if (typeof place.coords !== "undefined") {
+        // coordinates are known (e.g. history item)
+        return new Promise(function (resolve) {
+            selectPlace_();
+            resolve(place);
+        });
+    } else {
+        // coordinates must be requested first (e.g. search item or legacy history item)
+        return getPlaceLocation(place.id).then(function (coords) {
+            console.info("Adding coordinates to place item");
+            place.coords = coords;
+            selectPlace_();
+            return place;
+        });
+    }
 }
 
 function busyEnter(callback, progressElement) {
@@ -276,19 +291,21 @@ function addPlaceHistory(place) {
 
     function prependPlace() {
         recentItems.prepend(itemDiv);
-        var idx = recentPlaceHistory.findIndex(function (item) {
-            return item.id === place.id;
-        });
-        if (idx >= 0) {
-            recentPlaceHistory.splice(idx, 1);
-        }
         recentPlaceHistory.splice(0, 0, place);
         storePlaceHistory();
     }
 
     var recentItems = $("#location_picker_recent_items");
-    recentItems.children().slice(4).remove();
-    recentPlaceHistory.splice(4);
+    var idx = recentPlaceHistory.findIndex(function (item) {
+        return item.id === place.id;
+    });
+    if (idx >= 0) {
+        recentPlaceHistory.splice(idx, 1);
+        recentItems.children().slice(idx, idx + 1).remove();
+    } else {
+        recentPlaceHistory.splice(4);
+        recentItems.children().slice(4).remove();
+    }
 
     var itemDiv = createItemPickerItem(place, false, function () {
         // modify recent list when select is done to avoid flicker
