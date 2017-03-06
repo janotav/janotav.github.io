@@ -195,7 +195,7 @@ function initialize() {
     });
     $("#favorites_navigation").click(function () {
         toggleFavoritesPage();
-        updateFavoriteMenuItem();
+        updateFavoriteMenuItem(true);
         applyFavoriteFilter();
     });
     var menuFilterFavorite = $("#menu_filter_favorite");
@@ -361,6 +361,7 @@ function restoreFavorites() {
 
 function storeFavorites() {
     if (db) {
+        console.log("Store favorites settings");
         var tx = db.transaction(["favorites"], "readwrite", 1000);
         var req = tx.objectStore("favorites").put({id: "favorites", items: myFavorites});
         req.onerror = function (event) {
@@ -880,7 +881,7 @@ function setMeta(meta) {
     displayAlarm();
 }
 
-function updateFavoriteMenuItem() {
+function updateFavoriteMenuItem(store) {
     var menuFilterFavorite = $("#menu_filter_favorite");
     var idx = Object.keys(myFavorites).findIndex(function (item) {
         return myFavorites[item] === true && item !== "enabled";
@@ -892,15 +893,18 @@ function updateFavoriteMenuItem() {
         menuFilterFavorite.addClass("disabled");
         if (myFavorites["enabled"] === true) {
             myFavorites["enabled"] = false;
-            storeFavorites();
+            store = true;
         }
     } else {
         menuFilterFavorite.removeClass("disabled");
     }
+    if (store) {
+        storeFavorites();
+    }
 }
 
 function updateFavoriteIcons() {
-    updateFavoriteMenuItem();
+    updateFavoriteMenuItem(false);
 
     if (typeof myMeta === "undefined") {
         return;
@@ -934,7 +938,6 @@ function addFavoriteIcon(code, element, callback) {
         if (typeof callback === "function") {
             callback();
         }
-        storeFavorites();
     });
     element.append(favIcon);
 }
