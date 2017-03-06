@@ -12,6 +12,7 @@ var myLocation;
 var myLocationJitter;
 var myStations;
 var myFilter;
+var myFavorites = {};
 var db;
 var recentPlaceHistory = [];
 var busyLock = false;
@@ -99,17 +100,27 @@ function initialize() {
     if ('indexedDB' in window) {
         var idb = window.indexedDB;
 
-        var request = idb.open("BuenosAires", 3);
+        var request = idb.open("BuenosAires", 4);
         request.onsuccess = function (event) {
             db = event.target.result;
             restorePlaceHistory();
             restoreCurrentPlace();
+            restoreFavorites();
         };
         request.onupgradeneeded = function (event) {
             console.info("IDB schema upgrade");
-            var store = event.target.result.createObjectStore("place", { keyPath: "id" });
-            store.add({id: "recent", items: []});
-            store.add({id: "current", item: {}});
+            var db = event.target.result;
+
+            if (!db.objectStoreNames.contains("place")) {
+                var placeStore = db.createObjectStore("place", { keyPath: "id" });
+                placeStore.add({id: "recent", items: []});
+                placeStore.add({id: "current", item: {}});
+            }
+
+            if (!db.objectStoreNames.contains("favorites")) {
+                var favoriteStore = db.createObjectStore("favorites", { keyPath: "id" });
+                favoriteStore.add({id: "favorites", items: {}});
+            }
         };
         request.onerror = function (event) {
             console.error("Failed to open IDB database BuenosAires: ", event);
@@ -153,7 +164,7 @@ function initialize() {
 
     installPreventPullToReload();
 
-    recalculatePlaceHolder();
+    recalculateMainPagePlaceHolder();
 
     var menu_items = $("#menu_items");
     var search = $("#search");
@@ -167,20 +178,42 @@ function initialize() {
         search.removeClass("invisible");
         menu_items.addClass("invisible");
         searchInput.focus();
-        recalculatePlaceHolder();
+        recalculateMainPagePlaceHolder();
         filterChangeHandler();
     });
 
     $("#search_close").click(function () {
         search.addClass("invisible");
-        recalculatePlaceHolder();
+        recalculateMainPagePlaceHolder();
         myFilter = undefined;
         applyFilter();
     });
 
+    $("#menu_manage_favorite").click(function () {
+        menu_items.addClass("invisible");
+        toggleFavoritesPage();
+    });
+    $("#favorites_navigation").click(function () {
+        toggleFavoritesPage();
+        updateFavoriteMenuItem();
+        applyFavoriteFilter();
+    });
+    var menuFilterFavorite = $("#menu_filter_favorite");
+    var menuFilterFavoriteCheck = $("#menu_filter_favorite_check");
+    menuFilterFavorite.click(function() {
+        if (menuFilterFavorite.hasClass("disabled")) {
+            return;
+        }
+        menu_items.addClass("invisible");
+        menuFilterFavoriteCheck.toggleClass("fa-square-o fa-check-square-o");
+        myFavorites["enabled"] = menuFilterFavoriteCheck.hasClass("fa-check-square-o");
+        storeFavorites();
+        applyFavoriteFilter();
+    });
+
     searchInput.change(filterChangeHandler);
 
-    $("#location_picker_navigation").click(toggleLocationPage);
+    $("#location_navigation").click(toggleLocationPage);
     $("#location").click(toggleLocationPage);
 
     var locationPickerCurrent = $("#location_picker_current");
@@ -314,6 +347,28 @@ function addPlaceHistory(place) {
     prependPlace();
 }
 
+function restoreFavorites() {
+    var tx = db.transaction(["favorites"], "readonly", 1000);
+    var req = tx.objectStore("favorites").get("favorites");
+    req.onsuccess = function (event) {
+        myFavorites = event.target.result.items;
+        updateFavoriteIcons();
+    };
+    req.onerror = function (event) {
+        console.error("Failed to retrieved favorites ", event);
+    };
+}
+
+function storeFavorites() {
+    if (db) {
+        var tx = db.transaction(["favorites"], "readwrite", 1000);
+        var req = tx.objectStore("favorites").put({id: "favorites", items: myFavorites});
+        req.onerror = function (event) {
+            console.error("Failed to write favorites", event);
+        }
+    }
+}
+
 function restorePlaceHistory() {
     var tx = db.transaction(["place"], "readonly", 1000);
     var req = tx.objectStore("place").get("recent");
@@ -378,11 +433,34 @@ function storeCurrentPlace() {
 function toggleLocationPage() {
     $("#location_page").toggleClass("invisible");
     $("#main_page").toggleClass("invisible");
+    recalculateLocationPlaceHolder();
 }
 
 function filterChangeHandler() {
     myFilter = $("#search_input").val();
     applyFilter();
+}
+
+function toggleFavoritesPage() {
+    $("#favorites_page").toggleClass("invisible");
+    $("#main_page").toggleClass("invisible");
+    recalculateFavoritesPlaceHolder();
+}
+
+function applyFavoriteFilter() {
+    Object.keys(myStations).forEach(function (stationCode) {
+        applyStationFavoriteFilter($("#" + stationCode), $("#" + stationCode + "_detail"), stationCode);
+    });
+}
+
+function applyStationFavoriteFilter(stationDiv, stationDetailDiv, code) {
+    if (myFavorites["enabled"] === true && myFavorites[code] !== true) {
+        stationDiv.addClass("favorite_invisible");
+        stationDetailDiv.addClass("favorite_invisible");
+    } else {
+        stationDiv.removeClass("favorite_invisible");
+        stationDetailDiv.removeClass("favorite_invisible");
+    }
 }
 
 function applyFilter() {
@@ -401,8 +479,20 @@ function applyStationFilter(stationDiv, stationDetailDiv, station) {
     }
 }
 
-function recalculatePlaceHolder() {
-    $("#header_place_holder").css("height", $("#header_outer").height() - parseInt($("body").css('margin')));
+function recalculateMainPagePlaceHolder() {
+    recalculatePlaceHolder($("#header_place_holder"), $("#header_outer"));
+}
+
+function recalculateLocationPlaceHolder() {
+    recalculatePlaceHolder($("#location_place_holder"), $("#location_navigation"));
+}
+
+function recalculateFavoritesPlaceHolder() {
+    recalculatePlaceHolder($("#favorites_place_holder"), $("#favorites_navigation"));
+}
+
+function recalculatePlaceHolder(target, source) {
+    target.css("height", source.height() - parseInt($("body").css('margin')));
 }
 
 function installPreventPullToReload() {
@@ -753,7 +843,111 @@ function setMeta(meta) {
         });
     });
 
+    var favorites = $("#favorites");
+    favorites.empty();
+    regionNames.sort(function (name1, name2) {
+        return name1.localeCompare(name2);
+    });
+    regionNames.forEach(function (regionName) {
+        var stationCodes = Object.keys(meta.regions[regionName]);
+        stationCodes.sort(function (code1, code2) {
+            return meta.regions[regionName][code1].name.localeCompare(meta.regions[regionName][code2].name);
+        });
+        var regionCode = stationCodes[0].substring(0, 1);
+        var favRegion = $("<div class='favorites_region'/>");
+        addFavoriteIcon(regionCode, favRegion, function () {
+            stationCodes.forEach(function (stationCode) {
+                myFavorites[stationCode] = myFavorites[regionCode];
+                setFavoriteIcon(stationCode);
+            });
+        });
+        favRegion.append(document.createTextNode(regionName));
+        favorites.append(favRegion);
+        stationCodes.forEach(function (stationCode) {
+            var favStation = $("<div class='favorites_station'/>");
+            addFavoriteIcon(stationCode, favStation, function () {
+                if (!myFavorites[stationCode]) {
+                    myFavorites[regionCode] = false;
+                    setFavoriteIcon(regionCode);
+                }
+            });
+            favStation.append(document.createTextNode(meta.regions[regionName][stationCode].name));
+            favorites.append(favStation);
+        });
+    });
+    updateFavoriteIcons();
+
     displayAlarm();
+}
+
+function updateFavoriteMenuItem() {
+    var menuFilterFavorite = $("#menu_filter_favorite");
+    var idx = Object.keys(myFavorites).findIndex(function (item) {
+        return myFavorites[item] === true && item !== "enabled";
+    });
+    if (idx < 0) {
+        var menuFilterFavoriteCheck = $("#menu_filter_favorite_check");
+        menuFilterFavoriteCheck.removeClass("fa-check-square-o");
+        menuFilterFavoriteCheck.addClass("fa-square-o");
+        menuFilterFavorite.addClass("disabled");
+        if (myFavorites["enabled"] === true) {
+            myFavorites["enabled"] = false;
+            storeFavorites();
+        }
+    } else {
+        menuFilterFavorite.removeClass("disabled");
+    }
+}
+
+function updateFavoriteIcons() {
+    updateFavoriteMenuItem();
+
+    if (typeof myMeta === "undefined") {
+        return;
+    }
+    var regionNames = Object.keys(myMeta.regions);
+    regionNames.forEach(function (regionName) {
+        var stationCodes = Object.keys(myMeta.regions[regionName]);
+        var regionCode = stationCodes[0].substring(0, 1);
+        setFavoriteIcon(regionCode);
+        stationCodes.forEach(function (stationCode) {
+            setFavoriteIcon(stationCode);
+        });
+    });
+    var favoriteCheck = $("#menu_filter_favorite_check");
+    if (myFavorites["enabled"] === true) {
+        favoriteCheck.addClass("fa-check-square-o");
+        favoriteCheck.removeClass("fa-square-o");
+    } else {
+        favoriteCheck.addClass("fa-square-o");
+        favoriteCheck.removeClass("fa-check-square-o");
+    }
+    applyFavoriteFilter();
+}
+
+function addFavoriteIcon(code, element, callback) {
+    var favIcon = $("<i class='favorite fa' aria-hidden='true'/>");
+    favIcon.attr("id", code + "_fav");
+    element.click(function () {
+        favIcon.toggleClass("fa-star fa-star-o");
+        myFavorites[code] = favIcon.hasClass("fa-star");
+        if (typeof callback === "function") {
+            callback();
+        }
+        storeFavorites();
+    });
+    element.append(favIcon);
+}
+
+function setFavoriteIcon(code) {
+    var favIcon = $("#" + code + "_fav");
+    if (myFavorites[code] === true) {
+        favIcon.addClass("fa-star");
+        favIcon.removeClass("fa-star-o");
+    } else {
+        favIcon.addClass("fa-star-o");
+        favIcon.removeClass("fa-star");
+    }
 }
 
 function setToken(token) {

@@ -113,11 +113,19 @@
         opacity: 0.5;
     }
 
+    .disabled {
+        color: darkgray;
+    }
+
     .invisible {
         display: none;
     }
 
     .search_invisible {
+        display: none;
+    }
+
+    .favorite_invisible {
         display: none;
     }
 
@@ -280,16 +288,6 @@
         height: 100px;
     }
 
-    div.location_page {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 3;
-        background: black;
-    }
-
     div.location {
         position: fixed;
         bottom: 10px;
@@ -301,12 +299,6 @@
 
     div.location_picker {
         padding-left: 15px;
-    }
-
-    .location_picker_navigation {
-        border-bottom: solid 2px white;
-        margin-top: 30px;
-        margin-bottom: 10px;
     }
 
     .location_picker_header {
@@ -336,6 +328,43 @@
 
     .location_picker_item {
         border-top: solid 1px darkgray;
+    }
+
+    div.favorites {
+        display: flex;
+        flex-direction: column;
+    }
+
+    div.favorites_region {
+        text-align: center;
+        margin-top: 20px;
+        background: darkgray;
+    }
+
+    div.favorites_station {
+        border-bottom: solid 1px lightgray;
+        padding: 10px;
+    }
+
+    i.favorite {
+        padding-right: 10px;
+    }
+
+    .page_navigation {
+        background: black;
+        position: fixed;
+        top: 0;
+        width: 100%;
+        z-index: 2;
+    }
+
+    .page_navigation_outer {
+        padding-top: 30px;
+        padding-bottom: 10px;
+    }
+
+    .page_navigation_inner {
+        border-bottom: solid 2px white;
     }
 
 </style>
@@ -380,6 +409,8 @@
     </div>
     <div class="menu">
         <div id="menu_items" class="menu_items invisible">
+            <div id="menu_filter_favorite" class="menu_item"><i id="menu_filter_favorite_check" class="fa fa-square-o" aria-hidden="true"></i> Oblíbené</div>
+            <div id="menu_manage_favorite" class="menu_item">Spravuj oblíbené</div>
             <div id="menu_search" class="menu_item">Vyhledání stanice</div>
         </div>
         <div id="menu_expander" class="menu_expander invisible">
@@ -387,29 +418,40 @@
         </div>
     </div>
 </div>
-<div id="location_page" class="location_page invisible">
-    <div id="location_picker" class="location_picker">
-        <div id="location_picker_navigation" class="location_picker_navigation">
-            <i class="fa fa-arrow-left" aria-hidden="true"></i> Návrat
+<div id="location_page" class="invisible">
+    <div id="location_navigation" class="page_navigation">
+        <div class="page_navigation_outer">
+            <div class="page_navigation_inner"><i class="fa fa-arrow-left" aria-hidden="true"></i> Návrat</div>
         </div>
-        <div class="location_picker_header">
-            <div style="display: inline-flex; flex-direction: column;">
-                <input id="location_picker_input" class="location_picker" type="text" placeholder="Jméno obce"/>
-                <div style="display: flex; justify-content: space-between">
-                    <div class="location_picker_legend">Zadejte název obce</div>
-                    <img src="img/powered_by_google.png" alt="powered by Google"/>
-                </div>
+    </div>
+    <div id="location_place_holder"></div>
+    <div class="location_picker_header">
+        <div style="display: inline-flex; flex-direction: column;">
+            <input id="location_picker_input" class="location_picker" type="text" placeholder="Jméno obce"/>
+            <div style="display: flex; justify-content: space-between">
+                <div class="location_picker_legend">Zadejte název obce</div>
+                <img src="img/powered_by_google.png" alt="powered by Google"/>
             </div>
-            <i id="location_picker_search" class="fa fa-search" aria-hidden="true"></i>
-            <i id="location_picker_running" class="fa fa-refresh fa-spin fa-fw invisible"></i>
         </div>
-        <div id="location_picker_result" class="location_picker_section location_picker_legend invisible">Výsledky hledání</div>
-        <div id="location_picker_items">
+        <i id="location_picker_search" class="fa fa-search" aria-hidden="true"></i>
+        <i id="location_picker_running" class="fa fa-refresh fa-spin fa-fw invisible"></i>
+    </div>
+    <div id="location_picker_result" class="location_picker_section location_picker_legend invisible">Výsledky hledání</div>
+    <div id="location_picker_items">
+    </div>
+    <div id="location_picker_current" class="location_picker_current"><i class="fa fa-crosshairs" aria-hidden="true"></i> Aktuální pozice</div>
+    <div class="location_picker_section location_picker_legend">Předchozí lokace</div>
+    <div id="location_picker_recent_items">
+    </div>
+</div>
+<div id="favorites_page" class="invisible">
+    <div id="favorites_navigation" class="page_navigation">
+        <div class="page_navigation_outer">
+            <div class="page_navigation_inner"><i class="fa fa-arrow-left" aria-hidden="true"></i> Návrat</div>
         </div>
-        <div id="location_picker_current" class="location_picker_current"><i class="fa fa-crosshairs" aria-hidden="true"></i> Aktuální pozice</div>
-        <div class="location_picker_section location_picker_legend">Předchozí lokace</div>
-        <div id="location_picker_recent_items">
-        </div>
+    </div>
+    <div id="favorites_place_holder"></div>
+    <div id="favorites" class="favorites">
     </div>
 </div>
 </body>
