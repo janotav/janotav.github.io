@@ -1084,8 +1084,30 @@ messaging.onMessage(function(payload) {
     loadMeta().then(function () {
         console.log('Load detail of the station in alarm');
         toggleDetail(payload.data.stationCode, true);
+        foregroundAlarm(parseInt(payload.data.stationIdx));
     });
 });
+
+function foregroundAlarm(stationIdx) {
+    var qualityClass = emission_idx[stationIdx + 1];
+    var headerInner = $("#header_inner");
+    blink(headerInner, qualityClass, 3);
+    if ("vibrate" in navigator) {
+        navigator.vibrate([200, 200, 200]);
+    }
+}
+
+function blink(headerInner, qualityClass, n) {
+    headerInner.addClass(qualityClass);
+    setTimeout(function () {
+        headerInner.removeClass(qualityClass);
+        if (--n > 0) {
+            setTimeout(function () {
+                blink(headerInner, qualityClass, n);
+            }, 100);
+        }
+    }, 100);
+}
 
 function updateAlarm(alarm) {
     // waiting for the server call makes the app look a little bit unresponsive, let's assume the operation succeeds
