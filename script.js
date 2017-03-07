@@ -493,7 +493,7 @@ function recalculateFavoritesPlaceHolder() {
 }
 
 function recalculatePlaceHolder(target, source) {
-    target.css("height", source.height() - parseInt($("body").css('margin')));
+    target.css("height", source.height() - parseInt($("body").css('margin-top')));
 }
 
 function installPreventPullToReload() {
