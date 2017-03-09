@@ -1,0 +1,17 @@
+{
+  "short_name": "El Tiempo",
+  "name": "Code name El Tiempo",
+  "start_url": "/mockup/history.html",
+  "display": "standalone",
+  "orientation": "landscape",
+  "gcm_sender_id": "103953800507",
+  "icons": [{
+    "src": "img/eco_green_factory_icon.png",
+    "sizes": "610x610",
+    "type": "image/png"
+  },{
+    "src": "img/eco_green_factory_icon_144x144.png",
+    "sizes": "144x144",
+    "type": "image/png"
+  }]
+}

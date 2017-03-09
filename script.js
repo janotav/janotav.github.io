@@ -16,6 +16,8 @@ var myFavorites = {};
 var db;
 var recentPlaceHistory = [];
 var busyLock = false;
+var myCharts = [];
+var myPatterns = {};
 
 var emission_types = {
     "NO2": "Oxid dusičitý",
@@ -23,7 +25,8 @@ var emission_types = {
     "CO": "Oxid uhelnatý",
     "O3": "Ozon",
     "PM10": "Prach 10 µm",
-    "PM2_5": "Prach 2,5 µm"
+    "PM2_5": "Prach 2,5 µm",
+    "idx": "Index kvality"
 };
 
 var emission_limits = {
@@ -56,6 +59,17 @@ var qualityLabel = {
     "bad": "Špatná",
     "very_bad": "Velmi špatná"
 };
+
+var colorIndex = [
+    "#CFCFCF",
+    "#FFFFFF",
+    "#C7EAFB",
+    "#9BD3AE",
+    "#FFF200",
+    "#FAA61A",
+    "#ED1C24",
+    "#671F20"
+];
 
 function loadPosition(store) {
     if (navigator.geolocation) {
@@ -246,6 +260,29 @@ function initialize() {
     }, locationPickerRunning);
     locationPickerInput.change(searchHandler);
     locationPickerSearch.click(searchHandler);
+
+    var history_navigation = $("#history_navigation");
+    history_navigation.click(function () {
+        toggleHistoryPage();
+    });
+
+    var history_page = $("#history_page");
+    $(window).scroll(function() {
+        if (!history_page.hasClass("invisible")) {
+            updateMeasurementName();
+        }
+    });
+
+    var history_measurement_outer = $("#history_measurement_outer");
+    history_measurement_outer.click(function () {
+        history_measurement_outer.toggleClass("select_border");
+        if (history_measurement_outer.hasClass("select_border")) {
+            $("#history_measurement > .item").removeClass("invisible").addClass("selecting");
+        } else {
+            $("#history_measurement > .item:not(.select_item)").addClass("invisible");
+            $("#history_measurement > .item").removeClass("selecting");
+        }
+    });
 }
 
 function selectPlace(place, history) {
@@ -448,6 +485,27 @@ function toggleFavoritesPage() {
     recalculateFavoritesPlaceHolder();
 }
 
+var historySaveScrollTop;
+
+function toggleHistoryPage() {
+    function orientationErr(err) {
+        console.warn("cannot switch orientation", err);
+    }
+    var historyPage = $("#history_page");
+    if (historyPage.hasClass("invisible")) {
+        historySaveScrollTop = $(window).scrollTop();
+    }
+    historyPage.toggleClass("invisible");
+    $("#main_page").toggleClass("invisible");
+    if (!historyPage.hasClass("invisible")) {
+        screen.orientation.lock("landscape").catch(orientationErr);
+        recalculateHistoryPlaceHolder();
+    } else {
+        screen.orientation.lock("portrait").catch(orientationErr);
+        $(window).scrollTop(historySaveScrollTop);
+    }
+}
+
 function applyFavoriteFilter() {
     Object.keys(myStations).forEach(function (stationCode) {
         applyStationFavoriteFilter($("#" + stationCode), $("#" + stationCode + "_detail"), stationCode);
@@ -492,6 +550,10 @@ function recalculateFavoritesPlaceHolder() {
     recalculatePlaceHolder($("#favorites_place_holder"), $("#favorites_navigation"));
 }
 
+function recalculateHistoryPlaceHolder() {
+    recalculatePlaceHolder($("#history_place_holder"), $("#history_header"));
+}
+
 function recalculatePlaceHolder(target, source) {
     target.css("height", source.height() - parseInt($("body").css('margin-top')));
 }
@@ -531,6 +593,11 @@ function installPreventPullToReload() {
 
 function reload() {
     var timeSpin = $("#time_spin");
+
+    if ($("#main_page").hasClass("invisible")) {
+        console.log('Reload discarded in history view');
+        return;
+    }
     
     if (timeSpin.hasClass("fa-spin")) {
         console.log('Reload discarded another reload running');
@@ -686,15 +753,25 @@ function limitDescription(measurement) {
     }
 }
 
+function getMeasurementIndex(type, val) {
+    var intervals = emission_limits[type];
+    if (typeof intervals !== "undefined") {
+        var idx = -1;
+        while (idx + 1 < intervals.length && val > intervals[idx + 1]) {
+            ++idx;
+        }
+        return Math.min(idx + 1, 6);
+    } else {
+        // not all measurements have intervals
+        return undefined;
+    }
+}
+
 function fixMeasurementIndex(measurement) {
     if (typeof measurement.idx === 'undefined' || measurement.idx < -1) {
-        var intervals = emission_limits[measurement.type + "_" + measurement.int];
-        if (typeof intervals !== 'undefined') { // not all measurements have intervals
-            var idx = -1;
-            while (idx + 1 < intervals.length && measurement.val > intervals[idx + 1]) {
-                ++idx;
-            }
-            measurement.idx = Math.min(idx + 1, 6);
+        var idx = getMeasurementIndex(measurement.type + "_" + measurement.int, measurement.val);
+        if (typeof idx !== "undefined") {
+            measurement.idx = idx;
         }
     }
 }
@@ -734,6 +811,16 @@ function setDetail(stationCode, data) {
         detail.append(noDataAvailable);
     }
 
+    var historyDiv = $("<div class='detail_panel history_panel'></div>");
+    historyDiv.addClass(station.qualityClass);
+    historyDiv.append($("<i class='fa fa-bar-chart history_panel' aria-hidden='true'></i>"));
+    historyDiv.append(document.createTextNode("Historie měření"));
+    historyDiv.click(function () {
+        toggleHistoryPage();
+        displayHistory(stationCode);
+    });
+    detail.append(historyDiv);
+
     if (typeof myToken === 'undefined' || myToken === false) {
         // token not ready or not supported, don't display panel
         return;
@@ -759,7 +846,7 @@ function addAlarmPanelToDetails() {
 
 function addAlarmPanelToDetail(stationCode, detail) {
     var station = myStations[stationCode];
-    var alarmPanelDiv = $("<div class='alarm_panel'>Upozornění</div>");
+    var alarmPanelDiv = $("<div class='detail_panel alarm_panel'>Upozornění</div>");
     alarmPanelDiv.addClass(station.qualityClass);
     emission_idx.slice(2).forEach(function (alarmClass) {
         var alarmToggle = $("<div class='alarm_toggle'/>");
@@ -831,9 +918,7 @@ function setMeta(meta) {
     stations.empty();
     myStations = {};
 
-    // convert to ISO format (original not supported by firefox)
-    var dateIso = meta.date.replace(/ UTC$/, 'Z').replace(/ /,'T');
-    var date = new Date(Date.parse(dateIso));
+    var date = parseUtcDate(meta.date);
     $("#date").text(date.toLocaleString("cs-CZ"));
 
     var regionNames = Object.keys(meta.regions);
@@ -1143,6 +1228,264 @@ function loadAlarm() {
     }).done(function (item) {
         console.log('Current server alarm: ', item);
         setAlarm(item);
+    });
+}
+
+function parseUtcDate(utcDateStr) {
+    // convert to ISO format (original not supported by firefox)
+    var dateIso = utcDateStr.replace(/ UTC$/, 'Z').replace(/ /,'T');
+    return new Date(Date.parse(dateIso));
+}
+
+function toUtcDate(date) {
+    return date.toISOString().replace(/T/, ' ').replace(/(\..).+/, '$1 UTC');
+}
+
+function displayHistory(stationCode) {
+    var station = myStations[stationCode];
+    $("#history_station").text(station.name);
+    $("#history_charts").empty();
+
+    var days = $("#history_period > .select_item").data("value");
+    var to = myMeta.date;
+    var from = new Date(parseUtcDate(to).getTime() - 1000 * 60 * 60 * (24 * days - 1));
+    loadHistory(stationCode, toUtcDate(from), to).then(function () {
+        updateMeasurementName();
+    });
+}
+
+function colorPattern(color) {
+    if (typeof myPatterns[color] === "undefined") {
+        var canvas = document.createElement("canvas");
+        var context = canvas.getContext("2d");
+
+        canvas.width = 10;
+        canvas.height = 10;
+
+        context.beginPath();
+        context.fillStyle = color;
+        context.fillRect(0, 0, 10, 10);
+        context.moveTo(0, 10);
+        context.lineTo(10, 0);
+        context.stroke();
+
+        myPatterns[color] = context.createPattern(canvas, "repeat");
+    }
+    return myPatterns[color];
+}
+
+function createDataset(values, idxFunc) {
+    var bg = [];
+    var data = [];
+    var lastValue;
+    for (var i = 0; i < values.length; i++) {
+        var value = values[i];
+        if (value < 0) {
+            if (typeof lastValue === "undefined") {
+                for (var j = i + 1; j < values.length; j++) {
+                    if (values[j] >= 0) {
+                        lastValue = values[j];
+                        break;
+                    }
+                }
+            }
+            data.push(lastValue);
+            bg.push(colorPattern(colorIndex[idxFunc(lastValue) + 1]));
+        } else {
+            data.push(value);
+            bg.push(colorIndex[idxFunc(value) + 1]);
+            lastValue = value;
+        }
+    }
+    return {
+        data: data,
+        background: bg
+    }
+}
+
+function updateMeasurementName() {
+    if ($("#history_measurement_outer").hasClass("select_border")) {
+        return;
+    }
+    var max = 0;
+    var oldMeasurement = $("#history_measurement > .select_item");
+    var newMeasurement;
+    myCharts.forEach(function (chart) {
+        var visibility = calculateVisibility(chart.elem);
+        if (visibility > max) {
+            max = visibility;
+            newMeasurement = chart.measurement;
+        }
+    });
+    if (typeof newMeasurement !== "undefined" && newMeasurement !== oldMeasurement) {
+        oldMeasurement.addClass("invisible");
+        oldMeasurement.removeClass("select_item");
+        newMeasurement.removeClass("invisible");
+        newMeasurement.addClass("select_item");
+    }
+}
+
+function calculateVisibility(elem) {
+    var win = $(window);
+    var visible_y_min = win.scrollTop() + $("#history_charts").offset().top;
+    var visible_y_max = win.scrollTop() + window.innerHeight;
+
+    var idx_y_min = elem.offset().top;
+    var idx_y_max = idx_y_min + elem.height();
+    return Math.max(0, Math.min(idx_y_max, visible_y_max) - Math.max(idx_y_min, visible_y_min));
+}
+
+function getMeasurementName(type) {
+    var res = type.match(/(.*)_(.+)$/);
+    if (res === null) {
+        return emission_types[type];
+    }
+
+    return emission_types[res[1]];
+}
+
+function generateTimeLabels(from, to) {
+
+    function pad(n) {
+        return n < 10? "0" + String(n): String(n);
+    }
+    var fromTime = parseUtcDate(from).getTime();
+    var toDate = parseUtcDate(to);
+    var ret = [];
+
+    while (true) {
+        ret.push(String(toDate.getHours()) + ":" + pad(toDate.getMinutes()));
+        var newTime = toDate.getTime() - 3600000;
+        if (newTime < fromTime) {
+            break;
+        }
+        toDate = new Date(newTime);
+    }
+
+    ret.reverse();
+    return ret;
+}
+
+function setHistory(from, to, history) {
+    var charts = $("#history_charts");
+    charts.empty();
+    myCharts = [];
+
+    var measurements = $("#history_measurement");
+    measurements.empty();
+
+    var types = Object.keys(history);
+    types.forEach(function (type) {
+        var idxValueFunc;
+        if (type === "idx") {
+            idxValueFunc = function (value) {
+                return value;
+            };
+        } else if (typeof emission_limits[type] === "undefined") {
+            // ignore measurements without limits (e.g. PM10_24h)
+            return;
+        } else {
+            idxValueFunc = function (value) {
+                return getMeasurementIndex(type, value);
+            };
+        }
+        var chartDiv = $("<div>");
+        var canvas = $("<canvas>");
+        canvas.attr("id", "canvas_" + type);
+        chartDiv.append(canvas);
+        charts.append(chartDiv);
+
+        var measurementDiv = $("<div class='item invisible'>");
+        measurementDiv.text(getMeasurementName(type));
+        measurementDiv.click(function () {
+            var historyMeasurementOuter = $("#history_measurement_outer");
+            if (historyMeasurementOuter.hasClass("select_border")) {
+                historyMeasurementOuter.removeClass("select_border");
+                $("#history_measurement > .item").addClass("invisible").removeClass("selecting");
+                $('html, body').animate({
+                    scrollTop: chartDiv.offset().top - $("#history_place_holder").height() - parseInt($("body").css('margin'))
+                }, 100);
+                return false;
+            } else {
+                return true;
+            }
+        });
+        measurements.append(measurementDiv);
+
+        myCharts.push({ elem: canvas, measurement: measurementDiv });
+
+        var options = {
+            tooltips: {
+                callbacks: {
+                    label: function (tooltipItems, data) {
+                        if (history[type][tooltipItems.index] < 0) {
+                            return "Hodnota není k dispozici";
+                        } else {
+                            return qualityLabel[emission_idx[idxValueFunc(tooltipItems.yLabel) + 1]] + (type !== "idx"? " (" + tooltipItems.yLabel + " µg/m³)": "")
+                        }
+                    },
+                    labelColor: function (tooltipItems, data) {
+                        return {
+                            backgroundColor: colorIndex[idxValueFunc(tooltipItems.yLabel) + 1]
+                        };
+                    }
+                }
+            },
+            legend: {
+                display: false
+            },
+            scales: {
+                yAxes: [{
+                    ticks: {
+                        beginAtZero:true
+                    }
+                }]
+            }
+        };
+        if (type === "idx") {
+            options.scales.yAxes[0].ticks.stepSize = 1;
+            options.scales.yAxes[0].ticks.max = 6;
+        } else {
+            // fix the scale?
+            //options.scales.yAxes[0].ticks.max = emission_limits[type].slice(-2, -1)[0];
+        }
+        var dataset = createDataset(history[type], idxValueFunc);
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: generateTimeLabels(from, to),
+                datasets: [{
+                    data: dataset.data,
+                    backgroundColor: dataset.background
+                }]
+            },
+            options: options
+        });
+    });
+}
+
+function loadHistory(station, from, to) {
+    console.log('Retrieving station history data from the server');
+    return new Promise(function (resolve, reject) {
+        $.ajax({
+            url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/history',
+            method: 'GET',
+            data: {
+                station: station,
+                from: from,
+                to: to
+            },
+            headers: {
+                'x-api-key': 'api_key_public_access'
+            }
+        }).done(function (result) {
+            console.log("History query result: ", result);
+            setHistory(from, to, result);
+            resolve(result);
+        }).catch(function (err) {
+            console.error("Failed to retrieve station history: ", err);
+            reject(err);
+        });
     });
 }
 
