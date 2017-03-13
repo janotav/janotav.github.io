@@ -16,6 +16,16 @@ var myFavorites = {};
 var db;
 var recentPlaceHistory = [];
 var busyLock = false;
+var myCharts = [];
+var myPatterns = {};
+var myHistoryStation;
+
+const precision = {
+    VERY_GOOD: 0,
+    GOOD: 1,
+    BAD: 2,
+    INTERPOLATION: 3
+};
 
 var emission_types = {
     "NO2": "Oxid dusičitý",
@@ -23,7 +33,8 @@ var emission_types = {
     "CO": "Oxid uhelnatý",
     "O3": "Ozon",
     "PM10": "Prach 10 µm",
-    "PM2_5": "Prach 2,5 µm"
+    "PM2_5": "Prach 2,5 µm",
+    "idx": "Index kvality"
 };
 
 var emission_limits = {
@@ -56,6 +67,17 @@ var qualityLabel = {
     "bad": "Špatná",
     "very_bad": "Velmi špatná"
 };
+
+var colorIndex = [
+    "#CFCFCF",
+    "#FFFFFF",
+    "#C7EAFB",
+    "#9BD3AE",
+    "#FFF200",
+    "#FAA61A",
+    "#ED1C24",
+    "#671F20"
+];
 
 function loadPosition(store) {
     if (navigator.geolocation) {
@@ -220,8 +242,7 @@ function initialize() {
     if (navigator.geolocation) {
         // we assume position loading is so quick we don't need progress indication
         // the lock ensures we don't execute when others are running (rather than vice-versa)
-        locationPickerCurrent.click(busyEnter(function() {
-            busyLeave();
+        locationPickerCurrent.click(busyCheck(function() {
             loadPosition(true);
             toggleLocationPage();
         }));
@@ -246,6 +267,72 @@ function initialize() {
     }, locationPickerRunning);
     locationPickerInput.change(searchHandler);
     locationPickerSearch.click(searchHandler);
+
+    var history_navigation = $("#history_navigation");
+    history_navigation.click(function () {
+        toggleHistoryPage();
+    });
+
+    var history_page = $("#history_page");
+    var history_running = $("#history_running");
+    $(window).scroll(function() {
+        if (!history_page.hasClass("invisible") && history_running.hasClass("invisible")) {
+            updateMeasurementName();
+        }
+    });
+
+    select_dropdown($("#history_measurement_outer"));
+
+    select_dropdown($("#history_period_outer"));
+
+    function itemSelected() {
+        var currentMeasurementType = $("#history_measurement > .select_item").data("type");
+        history_navigation.addClass("invisible");
+        history_running.removeClass("invisible");
+        busyLock = true;
+        displayHistory(currentMeasurementType).then(function () {
+            busyLock = false;
+            $("#history_running").addClass("invisible");
+            $("#history_navigation").removeClass("invisible");
+        });
+    }
+
+    select_item($("#history_period_1"), itemSelected);
+    select_item($("#history_period_7"), itemSelected);
+    select_item($("#history_period_28"), itemSelected);
+}
+
+function select_item(item, callback) {
+    var select_outer = item.closest(".history_select");
+    item.click(busyCheck(function () {
+        if (select_outer.hasClass("select_border")) {
+            if (!item.hasClass("select_item")) {
+                select_outer.find(".select_item").removeClass("select_item");
+                item.addClass("select_item");
+                callback(item);
+            }
+            close_dropdown(select_outer);
+            return false;
+        }
+        return true;
+    }));
+}
+
+function close_dropdown(select_outer) {
+    select_outer.toggleClass("select_border no_border");
+    select_outer.find(".item:not(.select_item)").addClass("invisible");
+    select_outer.find(".item").removeClass("selecting");
+}
+
+function select_dropdown(select_outer) {
+    select_outer.click(busyCheck(function () {
+        if (!select_outer.hasClass("select_border")) {
+            select_outer.toggleClass("select_border no_border");
+            select_outer.find(".item").removeClass("invisible").addClass("selecting");
+        } else {
+            close_dropdown(select_outer);
+        }
+    }));
 }
 
 function selectPlace(place, history) {
@@ -287,7 +374,7 @@ function busyEnter(callback, progressElement) {
                 progressElement.removeClass("invisible");
             }
             busyLock = true;
-            callback();
+            return callback();
         }
     }
 }
@@ -296,6 +383,14 @@ function busyLeave(progressElement) {
     busyLock = false;
     if (typeof progressElement !== "undefined") {
         progressElement.addClass("invisible");
+    }
+}
+
+function busyCheck(callback) {
+    return function() {
+        if (!busyLock) {
+            return callback();
+        }
     }
 }
 
@@ -448,6 +543,27 @@ function toggleFavoritesPage() {
     recalculateFavoritesPlaceHolder();
 }
 
+var historySaveScrollTop;
+
+function toggleHistoryPage() {
+    function orientationErr(err) {
+        console.warn("cannot switch orientation", err);
+    }
+    var historyPage = $("#history_page");
+    if (historyPage.hasClass("invisible")) {
+        historySaveScrollTop = $(window).scrollTop();
+    }
+    historyPage.toggleClass("invisible");
+    $("#main_page").toggleClass("invisible");
+    if (!historyPage.hasClass("invisible")) {
+        screen.orientation.lock("landscape").catch(orientationErr);
+        recalculateHistoryPlaceHolder();
+    } else {
+        screen.orientation.lock("portrait").catch(orientationErr);
+        $(window).scrollTop(historySaveScrollTop);
+    }
+}
+
 function applyFavoriteFilter() {
     Object.keys(myStations).forEach(function (stationCode) {
         applyStationFavoriteFilter($("#" + stationCode), $("#" + stationCode + "_detail"), stationCode);
@@ -492,6 +608,10 @@ function recalculateFavoritesPlaceHolder() {
     recalculatePlaceHolder($("#favorites_place_holder"), $("#favorites_navigation"));
 }
 
+function recalculateHistoryPlaceHolder() {
+    recalculatePlaceHolder($("#history_place_holder"), $("#history_header"));
+}
+
 function recalculatePlaceHolder(target, source) {
     target.css("height", source.height() - parseInt($("body").css('margin-top')));
 }
@@ -531,6 +651,11 @@ function installPreventPullToReload() {
 
 function reload() {
     var timeSpin = $("#time_spin");
+
+    if ($("#main_page").hasClass("invisible")) {
+        console.log('Reload discarded in history view');
+        return;
+    }
     
     if (timeSpin.hasClass("fa-spin")) {
         console.log('Reload discarded another reload running');
@@ -686,15 +811,25 @@ function limitDescription(measurement) {
     }
 }
 
+function getMeasurementIndex(type, val) {
+    var intervals = emission_limits[type];
+    if (typeof intervals !== "undefined") {
+        var idx = -1;
+        while (idx + 1 < intervals.length && val > intervals[idx + 1]) {
+            ++idx;
+        }
+        return Math.min(idx + 1, 6);
+    } else {
+        // not all measurements have intervals
+        return undefined;
+    }
+}
+
 function fixMeasurementIndex(measurement) {
     if (typeof measurement.idx === 'undefined' || measurement.idx < -1) {
-        var intervals = emission_limits[measurement.type + "_" + measurement.int];
-        if (typeof intervals !== 'undefined') { // not all measurements have intervals
-            var idx = -1;
-            while (idx + 1 < intervals.length && measurement.val > intervals[idx + 1]) {
-                ++idx;
-            }
-            measurement.idx = Math.min(idx + 1, 6);
+        var idx = getMeasurementIndex(measurement.type + "_" + measurement.int, measurement.val);
+        if (typeof idx !== "undefined") {
+            measurement.idx = idx;
         }
     }
 }
@@ -734,6 +869,17 @@ function setDetail(stationCode, data) {
         detail.append(noDataAvailable);
     }
 
+    var historyDiv = $("<div class='detail_panel history_panel'></div>");
+    historyDiv.addClass(station.qualityClass);
+    historyDiv.append($("<i class='fa fa-bar-chart history_panel' aria-hidden='true'></i>"));
+    historyDiv.append(document.createTextNode("Historie měření"));
+    historyDiv.click(function () {
+        myHistoryStation = stationCode;
+        toggleHistoryPage();
+        displayHistory();
+    });
+    detail.append(historyDiv);
+
     if (typeof myToken === 'undefined' || myToken === false) {
         // token not ready or not supported, don't display panel
         return;
@@ -759,7 +905,7 @@ function addAlarmPanelToDetails() {
 
 function addAlarmPanelToDetail(stationCode, detail) {
     var station = myStations[stationCode];
-    var alarmPanelDiv = $("<div class='alarm_panel'>Upozornění</div>");
+    var alarmPanelDiv = $("<div class='detail_panel alarm_panel'>Upozornění</div>");
     alarmPanelDiv.addClass(station.qualityClass);
     emission_idx.slice(2).forEach(function (alarmClass) {
         var alarmToggle = $("<div class='alarm_toggle'/>");
@@ -831,9 +977,7 @@ function setMeta(meta) {
     stations.empty();
     myStations = {};
 
-    // convert to ISO format (original not supported by firefox)
-    var dateIso = meta.date.replace(/ UTC$/, 'Z').replace(/ /,'T');
-    var date = new Date(Date.parse(dateIso));
+    var date = parseUtcDate(meta.date);
     $("#date").text(date.toLocaleString("cs-CZ"));
 
     var regionNames = Object.keys(meta.regions);
@@ -1143,6 +1287,375 @@ function loadAlarm() {
     }).done(function (item) {
         console.log('Current server alarm: ', item);
         setAlarm(item);
+    });
+}
+
+function parseUtcDate(utcDateStr) {
+    // convert to ISO format (original not supported by firefox)
+    var dateIso = utcDateStr.replace(/ UTC$/, 'Z').replace(/ /,'T');
+    return new Date(Date.parse(dateIso));
+}
+
+function toUtcDate(date) {
+    return date.toISOString().replace(/T/, ' ').replace(/(\..).+/, '$1 UTC');
+}
+
+function precisionFunc(days) {
+    return function(count) {
+        if (days === 1) {
+            if (count === 1) {
+                return precision.VERY_GOOD;
+            } else {
+                return precision.INTERPOLATION;
+            }
+        } else if (days === 7) {
+            if (count >= 6) {
+                return precision.VERY_GOOD;
+            } else if (count >= 4) {
+                return precision.GOOD;
+            } else if (count >= 1) {
+                return precision.BAD;
+            } else {
+                return precision.INTERPOLATION;
+            }
+        } else if (days === 28) {
+            if (count >= 25) {
+                return precision.VERY_GOOD;
+            } else if (count >= 13) {
+                return precision.GOOD;
+            } else if (count >= 1) {
+                return precision.BAD;
+            } else {
+                return precision.INTERPOLATION;
+            }
+        } else {
+            console.warn("Unsupported internval: " + days + " days");
+            return 0;
+        }
+    }
+}
+
+function displayHistory(measurementType) {
+    var station = myStations[myHistoryStation];
+    $("#history_station").text(station.name);
+    $("#history_charts").empty();
+
+    var days = $("#history_period > .select_item").data("value");
+    var to = myMeta.date;
+    var from = new Date(parseUtcDate(to).getTime() - 1000 * 60 * 60 * (24 * days - 1));
+    var startAtMidnight = (days > 1);
+    return loadHistory(myHistoryStation, toUtcDate(from), to, precisionFunc(days), measurementType, startAtMidnight).then(function (measurementTypeSelected) {
+        if (!measurementTypeSelected) {
+            updateMeasurementName();
+        }
+    });
+}
+
+function colorPattern(color, p) {
+    var colorAndPrecision = color + "_" + p;
+    if (typeof myPatterns[colorAndPrecision] === "undefined") {
+        var canvas = document.createElement("canvas");
+        var context = canvas.getContext("2d");
+
+        canvas.width = 10;
+        canvas.height = 10;
+
+        context.beginPath();
+        context.fillStyle = color;
+        context.fillRect(0, 0, 10, 10);
+        context.moveTo(0, 10);
+        context.lineTo(10, 0);
+        if (p === precision.BAD) {
+            context.moveTo(10, 10);
+            context.lineTo(0, 0);
+        }
+        context.stroke();
+
+        myPatterns[colorAndPrecision] = context.createPattern(canvas, "repeat");
+    }
+    return myPatterns[colorAndPrecision];
+}
+
+function createDataset(values, idxFunc, precisionFunc) {
+    var bg = [];
+    var data = [];
+    var borderColor = [];
+    var borderWidth = [];
+    for (var i = 0; i < values.length; i++) {
+        var value = values[i][0];
+        data.push(value);
+        var color = colorIndex[idxFunc(value) + 1];
+
+        var p = precisionFunc(values[i][1]);
+        switch (p) {
+            case precision.VERY_GOOD:
+                // solid bar
+                bg.push(color);
+                borderColor.push(undefined);
+                borderWidth.push(0);
+                break;
+
+            case precision.GOOD:
+            case precision.BAD:
+                // pattern
+                bg.push(colorPattern(color, p));
+                borderColor.push(undefined);
+                borderWidth.push(0);
+                break;
+
+            case precision.INTERPOLATION:
+                // border only
+                bg.push("#000000");
+                borderColor.push(color);
+                borderWidth.push(4);
+                break;
+        }
+    }
+    return {
+        data: data,
+        background: bg,
+        borderColor: borderColor,
+        borderWidth: borderWidth
+    }
+}
+
+function updateMeasurementName() {
+    if ($("#history_measurement_outer").hasClass("select_border")) {
+        return;
+    }
+    var max = 0;
+    var oldMeasurement = $("#history_measurement > .select_item");
+    var newMeasurement;
+    myCharts.forEach(function (chart) {
+        var visibility = calculateVisibility(chart.elem);
+        if (visibility > max) {
+            max = visibility;
+            newMeasurement = chart.measurement;
+        }
+    });
+    if (typeof newMeasurement !== "undefined" && newMeasurement !== oldMeasurement) {
+        oldMeasurement.addClass("invisible");
+        oldMeasurement.removeClass("select_item");
+        newMeasurement.removeClass("invisible");
+        newMeasurement.addClass("select_item");
+    }
+}
+
+function calculateVisibility(elem) {
+    var win = $(window);
+    var visible_y_min = win.scrollTop() + $("#history_charts").offset().top;
+    var visible_y_max = win.scrollTop() + window.innerHeight;
+
+    var idx_y_min = elem.offset().top;
+    var idx_y_max = idx_y_min + elem.height();
+    return Math.max(0, Math.min(idx_y_max, visible_y_max) - Math.max(idx_y_min, visible_y_min));
+}
+
+function getMeasurementName(type) {
+    var res = type.match(/(.*)_(.+)$/);
+    if (res === null) {
+        return emission_types[type];
+    }
+
+    return emission_types[res[1]];
+}
+
+function generateTimeLabels(to) {
+
+    function pad(n) {
+        return n < 10? "0" + String(n): String(n);
+    }
+    var toDate = parseUtcDate(to);
+    var fromTime = toDate.getTime() - 3600000 * 23;
+    var ret = [];
+
+    while (true) {
+        ret.push(String(toDate.getHours()) + ":" + pad(toDate.getMinutes()));
+        var newTime = toDate.getTime() - 3600000;
+        if (newTime < fromTime) {
+            break;
+        }
+        toDate = new Date(newTime);
+    }
+
+    ret.reverse();
+    return ret;
+}
+
+function sortMeasurements(a, b) {
+    function w(val) {
+        switch (val) {
+            case "idx":
+                return "0";
+
+            case "PM10_1h":
+                return "1";
+
+            case "PM2_5_1h":
+                return "9";
+
+            default:
+                return "5" + val;
+        }
+    }
+    var wa = w(a);
+    var wb = w(b);
+    return wa == wb? 0: (wa < wb? -1: 1);
+}
+
+function setHistory(to, history, precisionFunc, selectMeasurementType, startAtMidnight) {
+    var charts = $("#history_charts");
+    charts.empty();
+    myCharts = [];
+
+    var measurements = $("#history_measurement");
+    measurements.empty();
+
+    var measurementTypeSelected = false;
+    var types = Object.keys(history);
+    types.sort(sortMeasurements);
+    types.forEach(function (type) {
+        var idxValueFunc;
+        if (type === "idx") {
+            idxValueFunc = function (value) {
+                return Math.round(value);
+            };
+        } else if (typeof emission_limits[type] === "undefined") {
+            // ignore measurements without limits (e.g. PM10_24h)
+            return;
+        } else {
+            idxValueFunc = function (value) {
+                return getMeasurementIndex(type, value);
+            };
+        }
+        var chartDiv = $("<div>");
+        var canvas = $("<canvas>");
+        canvas.attr("id", "canvas_" + type);
+        chartDiv.append(canvas);
+        charts.append(chartDiv);
+
+        function scrollTo() {
+            $('html, body').animate({
+                scrollTop: chartDiv.offset().top - $("#history_place_holder").height() - parseInt($("body").css('margin'))
+            }, 100);
+        }
+
+        var measurementDiv = $("<div class='item invisible'>");
+        measurementDiv.data("type", type);
+        measurementDiv.text(getMeasurementName(type));
+        measurementDiv.click(function () {
+            var historyMeasurementOuter = $("#history_measurement_outer");
+            if (historyMeasurementOuter.hasClass("select_border")) {
+                historyMeasurementOuter.toggleClass("select_border no_border");
+                $("#history_measurement > .item").addClass("invisible").removeClass("selecting");
+                scrollTo();
+                return false;
+            } else {
+                return true;
+            }
+        });
+        measurements.append(measurementDiv);
+
+        myCharts.push({ elem: canvas, measurement: measurementDiv });
+
+        if (type === selectMeasurementType) {
+            scrollTo();
+            measurementDiv.toggleClass("select_item invisible");
+            measurementTypeSelected = true;
+        }
+
+        var options = {
+            tooltips: {
+                callbacks: {
+                    label: function (tooltipItems, data) {
+                        var count = history[type][(tooltipItems.index + startOffset) % 24][1];
+                        var str;
+                        if (count === 0) {
+                            str = "interpolace";
+                        } else {
+                            str = "ø " + count + " měření";
+                        }
+                        return qualityLabel[emission_idx[idxValueFunc(tooltipItems.yLabel) + 1]] + " (" + (type !== "idx"? tooltipItems.yLabel + " µg/m³,": "") + str + ")";
+                    },
+                    labelColor: function (tooltipItems, data) {
+                        return {
+                            backgroundColor: colorIndex[idxValueFunc(tooltipItems.yLabel) + 1]
+                        };
+                    }
+                }
+            },
+            legend: {
+                display: false
+            },
+            scales: {
+                yAxes: [{
+                    ticks: {
+                        beginAtZero:true
+                    }
+                }]
+            }
+        };
+        if (type === "idx") {
+            options.scales.yAxes[0].ticks.stepSize = 1;
+            options.scales.yAxes[0].ticks.max = 6;
+        } else {
+            // fix the scale?
+            //options.scales.yAxes[0].ticks.max = emission_limits[type].slice(-2, -1)[0];
+        }
+        var dataset = createDataset(history[type], idxValueFunc, precisionFunc);
+        var timeLabels = generateTimeLabels(to);
+        var startOffset = 0;
+        if (startAtMidnight) {
+            startOffset = timeLabels.indexOf("0:00");
+            if (startOffset > 0) {
+                Array.prototype.push.apply(timeLabels, timeLabels.splice(0, startOffset));
+                Array.prototype.push.apply(dataset.data, dataset.data.splice(0, startOffset));
+                Array.prototype.push.apply(dataset.background, dataset.background.splice(0, startOffset));
+                Array.prototype.push.apply(dataset.borderColor, dataset.borderColor.splice(0, startOffset));
+                Array.prototype.push.apply(dataset.borderWidth, dataset.borderWidth.splice(0, startOffset));
+            }
+        }
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    data: dataset.data,
+                    backgroundColor: dataset.background,
+                    borderColor: dataset.borderColor,
+                    borderWidth: dataset.borderWidth
+                }]
+            },
+            options: options
+        });
+    });
+
+    return measurementTypeSelected;
+}
+
+function loadHistory(station, from, to, precisionFunc, type, startAtMidnight) {
+    console.log('Retrieving station history data from the server');
+    return new Promise(function (resolve, reject) {
+        $.ajax({
+            url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/history',
+            method: 'GET',
+            data: {
+                station: station,
+                from: from,
+                to: to,
+                byHour: true
+            },
+            headers: {
+                'x-api-key': 'api_key_public_access'
+            }
+        }).done(function (result) {
+            console.log("History query result: ", result);
+            var typeSelected = setHistory(to, result, precisionFunc, type, startAtMidnight);
+            resolve(typeSelected);
+        }).catch(function (err) {
+            console.error("Failed to retrieve station history: ", err);
+            reject(err);
+        });
     });
 }
 

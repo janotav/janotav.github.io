@@ -7,6 +7,7 @@
 <script src="https://www.gstatic.com/firebasejs/3.6.9/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/3.6.9/firebase-messaging.js"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.min.js"></script>
 <script src="script.js"></script>
 <script type="text/javascript">
     window.onload = function() {
@@ -191,12 +192,15 @@
         margin: 30%;
     }
 
-    .alarm_panel {
+    .detail_panel {
         display: flex;
         flex-direction: row;
-        justify-content: space-between;
         align-items: center;
         padding: 10px;
+    }
+
+    .alarm_panel {
+        justify-content: space-between;
     }
 
     .alarm_toggle {
@@ -209,6 +213,10 @@
         border-bottom: 1px solid #FFFFFF;
         margin: 10px;
         padding: 3px;
+    }
+
+    i.history_panel {
+        padding-right: 10px;
     }
 
     div.stations {
@@ -367,6 +375,60 @@
         border-bottom: solid 2px white;
     }
 
+    div.history_select {
+        padding-left: 20px;
+        padding-right: 20px;
+        background: black;
+    }
+
+    .history_select {
+        display: inline-block;
+    }
+
+    div.select_item {
+        display: inline;
+    }
+
+    .history_header {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100%;
+        padding-left: 10px;
+        padding-top: 10px;
+        background: black;
+    }
+
+    .history_page {
+        font-size: 30px;
+    }
+
+    span.history_station {
+        padding-right: 10px;
+    }
+
+    .select_options {
+        display: inline-flex;
+        flex-direction: column;
+    }
+
+    .select_box {
+        height: 1px;
+    }
+
+    .select_border {
+        border: solid 1px;
+    }
+
+    .no_border {
+        margin: 1px;
+    }
+
+    .selecting {
+        padding-top: 10px;
+        padding-bottom: 10px;
+    }
+
 </style>
 <body>
 <div id="main_page">
@@ -453,6 +515,37 @@
     <div id="favorites_place_holder"></div>
     <div id="favorites" class="favorites">
     </div>
+</div>
+<div id="history_page" class="history_page invisible">
+    <div id="history_header" class="history_header">
+        <div style="display: flex; padding-right: 20px;">
+            <span id="history_station" class="history_station"></span>
+
+            <div id="history_period_box" class="select_box">
+                <div id="history_period_outer" class="history_select no_border" style="min-width: 200px;">
+                    <i class="fa fa-bars history_select" aria-hidden="true"></i>
+                    <div id="history_period" class="select_options">
+                        <div id="history_period_1" data-value="1" class="item select_item"><span>24 hodin</span></div>
+                        <div id="history_period_7" data-value="7" class="item invisible"><span>týdenní ø</span></div>
+                        <div id="history_period_28" data-value="28" class="item invisible"><span>4 týdenní ø</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="history_measurement_box" class="select_box" style="flex-grow: 1;">
+                <div id="history_measurement_outer" class="history_select no_border">
+                    <i class="fa fa-bars history_select" aria-hidden="true"></i>
+                    <div id="history_measurement" class="select_options">
+                    </div>
+                </div>
+            </div>
+
+            <i id="history_navigation" class="fa fa-times" aria-hidden="true"></i>
+            <i id="history_running" class="fa fa-refresh fa-spin fa-fw invisible"></i>
+        </div>
+    </div>
+    <div id="history_place_holder"></div>
+    <div id="history_charts"></div>
 </div>
 </body>
 </html>
