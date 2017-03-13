@@ -18,6 +18,14 @@ var recentPlaceHistory = [];
 var busyLock = false;
 var myCharts = [];
 var myPatterns = {};
+var myHistoryStation;
+
+const precision = {
+    VERY_GOOD: 0,
+    GOOD: 1,
+    BAD: 2,
+    INTERPOLATION: 3
+};
 
 var emission_types = {
     "NO2": "Oxid dusičitý",
@@ -234,8 +242,7 @@ function initialize() {
     if (navigator.geolocation) {
         // we assume position loading is so quick we don't need progress indication
         // the lock ensures we don't execute when others are running (rather than vice-versa)
-        locationPickerCurrent.click(busyEnter(function() {
-            busyLeave();
+        locationPickerCurrent.click(busyCheck(function() {
             loadPosition(true);
             toggleLocationPage();
         }));
@@ -267,22 +274,65 @@ function initialize() {
     });
 
     var history_page = $("#history_page");
+    var history_running = $("#history_running");
     $(window).scroll(function() {
-        if (!history_page.hasClass("invisible")) {
+        if (!history_page.hasClass("invisible") && history_running.hasClass("invisible")) {
             updateMeasurementName();
         }
     });
 
-    var history_measurement_outer = $("#history_measurement_outer");
-    history_measurement_outer.click(function () {
-        history_measurement_outer.toggleClass("select_border");
-        if (history_measurement_outer.hasClass("select_border")) {
-            $("#history_measurement > .item").removeClass("invisible").addClass("selecting");
-        } else {
-            $("#history_measurement > .item:not(.select_item)").addClass("invisible");
-            $("#history_measurement > .item").removeClass("selecting");
+    select_dropdown($("#history_measurement_outer"));
+
+    select_dropdown($("#history_period_outer"));
+
+    function itemSelected() {
+        var currentMeasurementType = $("#history_measurement > .select_item").data("type");
+        history_navigation.addClass("invisible");
+        history_running.removeClass("invisible");
+        busyLock = true;
+        displayHistory(currentMeasurementType).then(function () {
+            busyLock = false;
+            $("#history_running").addClass("invisible");
+            $("#history_navigation").removeClass("invisible");
+        });
+    }
+
+    select_item($("#history_period_1"), itemSelected);
+    select_item($("#history_period_7"), itemSelected);
+    select_item($("#history_period_28"), itemSelected);
+}
+
+function select_item(item, callback) {
+    var select_outer = item.closest(".history_select");
+    item.click(busyCheck(function () {
+        if (select_outer.hasClass("select_border")) {
+            if (!item.hasClass("select_item")) {
+                select_outer.find(".select_item").removeClass("select_item");
+                item.addClass("select_item");
+                callback(item);
+            }
+            close_dropdown(select_outer);
+            return false;
         }
-    });
+        return true;
+    }));
+}
+
+function close_dropdown(select_outer) {
+    select_outer.toggleClass("select_border no_border");
+    select_outer.find(".item:not(.select_item)").addClass("invisible");
+    select_outer.find(".item").removeClass("selecting");
+}
+
+function select_dropdown(select_outer) {
+    select_outer.click(busyCheck(function () {
+        if (!select_outer.hasClass("select_border")) {
+            select_outer.toggleClass("select_border no_border");
+            select_outer.find(".item").removeClass("invisible").addClass("selecting");
+        } else {
+            close_dropdown(select_outer);
+        }
+    }));
 }
 
 function selectPlace(place, history) {
@@ -324,7 +374,7 @@ function busyEnter(callback, progressElement) {
                 progressElement.removeClass("invisible");
             }
             busyLock = true;
-            callback();
+            return callback();
         }
     }
 }
@@ -333,6 +383,14 @@ function busyLeave(progressElement) {
     busyLock = false;
     if (typeof progressElement !== "undefined") {
         progressElement.addClass("invisible");
+    }
+}
+
+function busyCheck(callback) {
+    return function() {
+        if (!busyLock) {
+            return callback();
+        }
     }
 }
 
@@ -816,8 +874,9 @@ function setDetail(stationCode, data) {
     historyDiv.append($("<i class='fa fa-bar-chart history_panel' aria-hidden='true'></i>"));
     historyDiv.append(document.createTextNode("Historie měření"));
     historyDiv.click(function () {
+        myHistoryStation = stationCode;
         toggleHistoryPage();
-        displayHistory(stationCode);
+        displayHistory();
     });
     detail.append(historyDiv);
 
@@ -1241,21 +1300,60 @@ function toUtcDate(date) {
     return date.toISOString().replace(/T/, ' ').replace(/(\..).+/, '$1 UTC');
 }
 
-function displayHistory(stationCode) {
-    var station = myStations[stationCode];
+function precisionFunc(days) {
+    return function(count) {
+        if (days === 1) {
+            if (count === 1) {
+                return precision.VERY_GOOD;
+            } else {
+                return precision.INTERPOLATION;
+            }
+        } else if (days === 7) {
+            if (count >= 6) {
+                return precision.VERY_GOOD;
+            } else if (count >= 4) {
+                return precision.GOOD;
+            } else if (count >= 1) {
+                return precision.BAD;
+            } else {
+                return precision.INTERPOLATION;
+            }
+        } else if (days === 28) {
+            if (count >= 25) {
+                return precision.VERY_GOOD;
+            } else if (count >= 13) {
+                return precision.GOOD;
+            } else if (count >= 1) {
+                return precision.BAD;
+            } else {
+                return precision.INTERPOLATION;
+            }
+        } else {
+            console.warn("Unsupported internval: " + days + " days");
+            return 0;
+        }
+    }
+}
+
+function displayHistory(measurementType) {
+    var station = myStations[myHistoryStation];
     $("#history_station").text(station.name);
     $("#history_charts").empty();
 
     var days = $("#history_period > .select_item").data("value");
     var to = myMeta.date;
     var from = new Date(parseUtcDate(to).getTime() - 1000 * 60 * 60 * (24 * days - 1));
-    loadHistory(stationCode, toUtcDate(from), to).then(function () {
-        updateMeasurementName();
+    var startAtMidnight = (days > 1);
+    return loadHistory(myHistoryStation, toUtcDate(from), to, precisionFunc(days), measurementType, startAtMidnight).then(function (measurementTypeSelected) {
+        if (!measurementTypeSelected) {
+            updateMeasurementName();
+        }
     });
 }
 
-function colorPattern(color) {
-    if (typeof myPatterns[color] === "undefined") {
+function colorPattern(color, p) {
+    var colorAndPrecision = color + "_" + p;
+    if (typeof myPatterns[colorAndPrecision] === "undefined") {
         var canvas = document.createElement("canvas");
         var context = canvas.getContext("2d");
 
@@ -1267,39 +1365,57 @@ function colorPattern(color) {
         context.fillRect(0, 0, 10, 10);
         context.moveTo(0, 10);
         context.lineTo(10, 0);
+        if (p === precision.BAD) {
+            context.moveTo(10, 10);
+            context.lineTo(0, 0);
+        }
         context.stroke();
 
-        myPatterns[color] = context.createPattern(canvas, "repeat");
+        myPatterns[colorAndPrecision] = context.createPattern(canvas, "repeat");
     }
-    return myPatterns[color];
+    return myPatterns[colorAndPrecision];
 }
 
-function createDataset(values, idxFunc) {
+function createDataset(values, idxFunc, precisionFunc) {
     var bg = [];
     var data = [];
-    var lastValue;
+    var borderColor = [];
+    var borderWidth = [];
     for (var i = 0; i < values.length; i++) {
-        var value = values[i];
-        if (value < 0) {
-            if (typeof lastValue === "undefined") {
-                for (var j = i + 1; j < values.length; j++) {
-                    if (values[j] >= 0) {
-                        lastValue = values[j];
-                        break;
-                    }
-                }
-            }
-            data.push(lastValue);
-            bg.push(colorPattern(colorIndex[idxFunc(lastValue) + 1]));
-        } else {
-            data.push(value);
-            bg.push(colorIndex[idxFunc(value) + 1]);
-            lastValue = value;
+        var value = values[i][0];
+        data.push(value);
+        var color = colorIndex[idxFunc(value) + 1];
+
+        var p = precisionFunc(values[i][1]);
+        switch (p) {
+            case precision.VERY_GOOD:
+                // solid bar
+                bg.push(color);
+                borderColor.push(undefined);
+                borderWidth.push(0);
+                break;
+
+            case precision.GOOD:
+            case precision.BAD:
+                // pattern
+                bg.push(colorPattern(color, p));
+                borderColor.push(undefined);
+                borderWidth.push(0);
+                break;
+
+            case precision.INTERPOLATION:
+                // border only
+                bg.push("#000000");
+                borderColor.push(color);
+                borderWidth.push(4);
+                break;
         }
     }
     return {
         data: data,
-        background: bg
+        background: bg,
+        borderColor: borderColor,
+        borderWidth: borderWidth
     }
 }
 
@@ -1344,13 +1460,13 @@ function getMeasurementName(type) {
     return emission_types[res[1]];
 }
 
-function generateTimeLabels(from, to) {
+function generateTimeLabels(to) {
 
     function pad(n) {
         return n < 10? "0" + String(n): String(n);
     }
-    var fromTime = parseUtcDate(from).getTime();
     var toDate = parseUtcDate(to);
+    var fromTime = toDate.getTime() - 3600000 * 23;
     var ret = [];
 
     while (true) {
@@ -1366,7 +1482,28 @@ function generateTimeLabels(from, to) {
     return ret;
 }
 
-function setHistory(from, to, history) {
+function sortMeasurements(a, b) {
+    function w(val) {
+        switch (val) {
+            case "idx":
+                return "0";
+
+            case "PM10_1h":
+                return "1";
+
+            case "PM2_5_1h":
+                return "9";
+
+            default:
+                return "5" + val;
+        }
+    }
+    var wa = w(a);
+    var wb = w(b);
+    return wa == wb? 0: (wa < wb? -1: 1);
+}
+
+function setHistory(to, history, precisionFunc, selectMeasurementType, startAtMidnight) {
     var charts = $("#history_charts");
     charts.empty();
     myCharts = [];
@@ -1374,12 +1511,14 @@ function setHistory(from, to, history) {
     var measurements = $("#history_measurement");
     measurements.empty();
 
+    var measurementTypeSelected = false;
     var types = Object.keys(history);
+    types.sort(sortMeasurements);
     types.forEach(function (type) {
         var idxValueFunc;
         if (type === "idx") {
             idxValueFunc = function (value) {
-                return value;
+                return Math.round(value);
             };
         } else if (typeof emission_limits[type] === "undefined") {
             // ignore measurements without limits (e.g. PM10_24h)
@@ -1395,16 +1534,21 @@ function setHistory(from, to, history) {
         chartDiv.append(canvas);
         charts.append(chartDiv);
 
+        function scrollTo() {
+            $('html, body').animate({
+                scrollTop: chartDiv.offset().top - $("#history_place_holder").height() - parseInt($("body").css('margin'))
+            }, 100);
+        }
+
         var measurementDiv = $("<div class='item invisible'>");
+        measurementDiv.data("type", type);
         measurementDiv.text(getMeasurementName(type));
         measurementDiv.click(function () {
             var historyMeasurementOuter = $("#history_measurement_outer");
             if (historyMeasurementOuter.hasClass("select_border")) {
-                historyMeasurementOuter.removeClass("select_border");
+                historyMeasurementOuter.toggleClass("select_border no_border");
                 $("#history_measurement > .item").addClass("invisible").removeClass("selecting");
-                $('html, body').animate({
-                    scrollTop: chartDiv.offset().top - $("#history_place_holder").height() - parseInt($("body").css('margin'))
-                }, 100);
+                scrollTo();
                 return false;
             } else {
                 return true;
@@ -1414,15 +1558,24 @@ function setHistory(from, to, history) {
 
         myCharts.push({ elem: canvas, measurement: measurementDiv });
 
+        if (type === selectMeasurementType) {
+            scrollTo();
+            measurementDiv.toggleClass("select_item invisible");
+            measurementTypeSelected = true;
+        }
+
         var options = {
             tooltips: {
                 callbacks: {
                     label: function (tooltipItems, data) {
-                        if (history[type][tooltipItems.index] < 0) {
-                            return "Hodnota není k dispozici";
+                        var count = history[type][(tooltipItems.index + startOffset) % 24][1];
+                        var str;
+                        if (count === 0) {
+                            str = "interpolace";
                         } else {
-                            return qualityLabel[emission_idx[idxValueFunc(tooltipItems.yLabel) + 1]] + (type !== "idx"? " (" + tooltipItems.yLabel + " µg/m³)": "")
+                            str = "ø " + count + " měření";
                         }
+                        return qualityLabel[emission_idx[idxValueFunc(tooltipItems.yLabel) + 1]] + " (" + (type !== "idx"? tooltipItems.yLabel + " µg/m³,": "") + str + ")";
                     },
                     labelColor: function (tooltipItems, data) {
                         return {
@@ -1449,22 +1602,38 @@ function setHistory(from, to, history) {
             // fix the scale?
             //options.scales.yAxes[0].ticks.max = emission_limits[type].slice(-2, -1)[0];
         }
-        var dataset = createDataset(history[type], idxValueFunc);
+        var dataset = createDataset(history[type], idxValueFunc, precisionFunc);
+        var timeLabels = generateTimeLabels(to);
+        var startOffset = 0;
+        if (startAtMidnight) {
+            startOffset = timeLabels.indexOf("0:00");
+            if (startOffset > 0) {
+                Array.prototype.push.apply(timeLabels, timeLabels.splice(0, startOffset));
+                Array.prototype.push.apply(dataset.data, dataset.data.splice(0, startOffset));
+                Array.prototype.push.apply(dataset.background, dataset.background.splice(0, startOffset));
+                Array.prototype.push.apply(dataset.borderColor, dataset.borderColor.splice(0, startOffset));
+                Array.prototype.push.apply(dataset.borderWidth, dataset.borderWidth.splice(0, startOffset));
+            }
+        }
         new Chart(canvas, {
             type: 'bar',
             data: {
-                labels: generateTimeLabels(from, to),
+                labels: timeLabels,
                 datasets: [{
                     data: dataset.data,
-                    backgroundColor: dataset.background
+                    backgroundColor: dataset.background,
+                    borderColor: dataset.borderColor,
+                    borderWidth: dataset.borderWidth
                 }]
             },
             options: options
         });
     });
+
+    return measurementTypeSelected;
 }
 
-function loadHistory(station, from, to) {
+function loadHistory(station, from, to, precisionFunc, type, startAtMidnight) {
     console.log('Retrieving station history data from the server');
     return new Promise(function (resolve, reject) {
         $.ajax({
@@ -1473,15 +1642,16 @@ function loadHistory(station, from, to) {
             data: {
                 station: station,
                 from: from,
-                to: to
+                to: to,
+                byHour: true
             },
             headers: {
                 'x-api-key': 'api_key_public_access'
             }
         }).done(function (result) {
             console.log("History query result: ", result);
-            setHistory(from, to, result);
-            resolve(result);
+            var typeSelected = setHistory(to, result, precisionFunc, type, startAtMidnight);
+            resolve(typeSelected);
         }).catch(function (err) {
             console.error("Failed to retrieve station history: ", err);
             reject(err);
