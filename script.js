@@ -19,6 +19,11 @@ var busyLock = false;
 var myCharts = [];
 var myPatterns = {};
 var myHistoryStation;
+var userAction;
+var backNavigation;
+
+// structural elements
+var main_page;
 
 const precision = {
     VERY_GOOD: 0,
@@ -119,6 +124,8 @@ function displayLocation() {
 }
 
 function initialize() {
+    main_page = $("#main_page");
+
     if ('indexedDB' in window) {
         var idb = window.indexedDB;
 
@@ -167,9 +174,21 @@ function initialize() {
             var stationCode = location.hash.substring(1);
             if (myStations[stationCode].name) {
                 toggleDetail(stationCode, true);
-                history.pushState("", document.title, window.location.pathname + window.location.search);
             }
         }
+        // make sure "back" does not close the window
+        history.pushState("", document.title, window.location.pathname + window.location.search);
+        $(window).on('popstate', function() {
+            if (!closeUserAction()) {
+                // no outstanding action, navigate to main page
+                if (typeof backNavigation !== "undefined") {
+                    backNavigation();
+                    backNavigation = undefined;
+                }
+            }
+            console.log("Pushing state to history");
+            history.pushState("", document.title, window.location.pathname + window.location.search);
+        });
     });
 
     $("#alarm_toggle").click(function () {
@@ -193,12 +212,19 @@ function initialize() {
     var searchInput = $("#search_input");
 
     $("#menu_expander").click(function () {
-        menu_items.toggleClass("invisible");
+        if (menu_items.hasClass("invisible")) {
+            menu_items.removeClass("invisible");
+            registerUserAction(function () {
+                menu_items.addClass("invisible");
+            });
+        } else {
+            closeUserAction();
+        }
     });
 
     $("#menu_search").click(function () {
         search.removeClass("invisible");
-        menu_items.addClass("invisible");
+        closeUserAction();
         searchInput.focus();
         recalculateMainPagePlaceHolder();
         filterChangeHandler();
@@ -212,7 +238,7 @@ function initialize() {
     });
 
     $("#menu_manage_favorite").click(function () {
-        menu_items.addClass("invisible");
+        closeUserAction();
         toggleFavoritesPage();
     });
     $("#favorites_navigation").click(function () {
@@ -226,7 +252,7 @@ function initialize() {
         if (menuFilterFavorite.hasClass("disabled")) {
             return;
         }
-        menu_items.addClass("invisible");
+        closeUserAction();
         menuFilterFavoriteCheck.toggleClass("fa-square-o fa-check-square-o");
         myFavorites["enabled"] = menuFilterFavoriteCheck.hasClass("fa-check-square-o");
         storeFavorites();
@@ -270,13 +296,8 @@ function initialize() {
 
     var history_navigation = $("#history_navigation");
     history_navigation.click(function () {
-        toggleHistoryPage();
-        if (history_measurement_outer.hasClass("select_border")) {
-            close_dropdown(history_measurement_outer);
-        }
-        if (history_period_outer.hasClass("select_border")) {
-            close_dropdown(history_period_outer);
-        }
+        closeUserAction();
+        hideHistoryPage();
     });
 
     var history_page = $("#history_page");
@@ -298,6 +319,12 @@ function initialize() {
     select_item($("#history_period_28"), historyLoader);
 }
 
+function leaveFavoritesPage() {
+    toggleFavoritesPage();
+    updateFavoriteMenuItem(true);
+    applyFavoriteFilter();
+}
+
 function select_item(item, callback) {
     var select_outer = item.closest(".history_select");
     item.click(busyCheck(function () {
@@ -307,7 +334,7 @@ function select_item(item, callback) {
                 item.addClass("select_item");
                 callback(item);
             }
-            close_dropdown(select_outer);
+            closeUserAction();
             return false;
         }
         return true;
@@ -325,10 +352,30 @@ function select_dropdown(select_outer) {
         if (!select_outer.hasClass("select_border")) {
             select_outer.toggleClass("select_border no_border");
             select_outer.find(".item").removeClass("invisible").addClass("selecting");
+            registerUserAction(function () {
+                close_dropdown(select_outer);
+            });
         } else {
-            close_dropdown(select_outer);
+            closeUserAction();
         }
     }));
+}
+
+function registerUserAction(callback) {
+    closeUserAction();
+    userAction = {
+        close: callback
+    };
+}
+
+function closeUserAction() {
+    if (typeof userAction !== "undefined") {
+        userAction.close();
+        userAction = undefined;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 function selectPlace(place, history) {
@@ -524,7 +571,10 @@ function storeCurrentPlace() {
 
 function toggleLocationPage() {
     $("#location_page").toggleClass("invisible");
-    $("#main_page").toggleClass("invisible");
+    main_page.toggleClass("invisible");
+    if (main_page.hasClass("invisible")) {
+        backNavigation = toggleLocationPage;
+    }
     recalculateLocationPlaceHolder();
 }
 
@@ -535,29 +585,33 @@ function filterChangeHandler() {
 
 function toggleFavoritesPage() {
     $("#favorites_page").toggleClass("invisible");
-    $("#main_page").toggleClass("invisible");
+    main_page.toggleClass("invisible");
+    if (main_page.hasClass("invisible")) {
+        backNavigation = leaveFavoritesPage;
+    }
     recalculateFavoritesPlaceHolder();
 }
 
 var historySaveScrollTop;
 
-function toggleHistoryPage() {
-    function orientationErr(err) {
-        console.warn("cannot switch orientation", err);
-    }
-    var historyPage = $("#history_page");
-    if (historyPage.hasClass("invisible")) {
-        historySaveScrollTop = $(window).scrollTop();
-    }
-    historyPage.toggleClass("invisible");
-    $("#main_page").toggleClass("invisible");
-    if (!historyPage.hasClass("invisible")) {
-        screen.orientation.lock("landscape").catch(orientationErr);
-        recalculateHistoryPlaceHolder();
-    } else {
-        screen.orientation.lock("portrait").catch(orientationErr);
-        $(window).scrollTop(historySaveScrollTop);
-    }
+function orientationErr(err) {
+    console.warn("cannot switch orientation", err);
+}
+
+function showHistoryPage() {
+    historySaveScrollTop = $(window).scrollTop();
+    main_page.addClass("invisible");
+    $("#history_page").removeClass("invisible");
+    backNavigation = hideHistoryPage;
+    screen.orientation.lock("landscape").catch(orientationErr);
+    recalculateHistoryPlaceHolder();
+}
+
+function hideHistoryPage() {
+    $("#history_page").addClass("invisible");
+    main_page.removeClass("invisible");
+    screen.orientation.lock("portrait").catch(orientationErr);
+    $(window).scrollTop(historySaveScrollTop);
 }
 
 function applyFavoriteFilter() {
@@ -648,7 +702,7 @@ function installPreventPullToReload() {
 function reload() {
     var timeSpin = $("#time_spin");
 
-    if ($("#main_page").hasClass("invisible")) {
+    if (main_page.hasClass("invisible")) {
         console.log('Reload discarded in history view');
         return;
     }
@@ -871,7 +925,7 @@ function setDetail(stationCode, data) {
     historyDiv.append(document.createTextNode("Historie měření"));
     historyDiv.click(function () {
         myHistoryStation = stationCode;
-        toggleHistoryPage();
+        showHistoryPage();
         historyLoader();
     });
     detail.append(historyDiv);
@@ -1556,8 +1610,7 @@ function setHistory(to, history, precisionFunc, selectMeasurementType, startAtMi
         measurementDiv.click(function () {
             var historyMeasurementOuter = $("#history_measurement_outer");
             if (historyMeasurementOuter.hasClass("select_border")) {
-                historyMeasurementOuter.toggleClass("select_border no_border");
-                $("#history_measurement > .item").addClass("invisible").removeClass("selecting");
+                closeUserAction();
                 scrollTo();
                 return false;
             } else {
