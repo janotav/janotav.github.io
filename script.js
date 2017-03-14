@@ -293,21 +293,9 @@ function initialize() {
     var history_period_outer = $("#history_period_outer");
     select_dropdown(history_period_outer);
 
-    function itemSelected() {
-        var currentMeasurementType = $("#history_measurement > .select_item").data("type");
-        history_navigation.addClass("invisible");
-        history_running.removeClass("invisible");
-        busyLock = true;
-        displayHistory(currentMeasurementType).then(function () {
-            busyLock = false;
-            $("#history_running").addClass("invisible");
-            $("#history_navigation").removeClass("invisible");
-        });
-    }
-
-    select_item($("#history_period_1"), itemSelected);
-    select_item($("#history_period_7"), itemSelected);
-    select_item($("#history_period_28"), itemSelected);
+    select_item($("#history_period_1"), historyLoader);
+    select_item($("#history_period_7"), historyLoader);
+    select_item($("#history_period_28"), historyLoader);
 }
 
 function select_item(item, callback) {
@@ -884,7 +872,7 @@ function setDetail(stationCode, data) {
     historyDiv.click(function () {
         myHistoryStation = stationCode;
         toggleHistoryPage();
-        displayHistory();
+        historyLoader();
     });
     detail.append(historyDiv);
 
@@ -1341,6 +1329,20 @@ function precisionFunc(days) {
             return 0;
         }
     }
+}
+
+function historyLoader() {
+    var measurementType = $("#history_measurement").find(".select_item").data("type");
+    var history_navigation = $("#history_navigation");
+    var history_running = $("#history_running");
+    history_navigation.addClass("invisible");
+    history_running.removeClass("invisible");
+    busyLock = true;
+    displayHistory(measurementType).then(function () {
+        busyLock = false;
+        history_running.addClass("invisible");
+        history_navigation.removeClass("invisible");
+    });
 }
 
 function displayHistory(measurementType) {
