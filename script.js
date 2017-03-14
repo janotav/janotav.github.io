@@ -271,6 +271,12 @@ function initialize() {
     var history_navigation = $("#history_navigation");
     history_navigation.click(function () {
         toggleHistoryPage();
+        if (history_measurement_outer.hasClass("select_border")) {
+            close_dropdown(history_measurement_outer);
+        }
+        if (history_period_outer.hasClass("select_border")) {
+            close_dropdown(history_period_outer);
+        }
     });
 
     var history_page = $("#history_page");
@@ -281,9 +287,11 @@ function initialize() {
         }
     });
 
-    select_dropdown($("#history_measurement_outer"));
+    var history_measurement_outer = $("#history_measurement_outer");
+    select_dropdown(history_measurement_outer);
 
-    select_dropdown($("#history_period_outer"));
+    var history_period_outer = $("#history_period_outer");
+    select_dropdown(history_period_outer);
 
     function itemSelected() {
         var currentMeasurementType = $("#history_measurement > .select_item").data("type");
@@ -768,7 +776,7 @@ function toggleDetail(stationCode, forceShow) {
     function scrollTo() {
         if (forceShow) {
             $('html,body').animate({
-                scrollTop: $("#" + stationCode).offset().top - $("#header_place_holder").height() - parseInt($("body").css('margin'))
+                scrollTop: $("#" + stationCode).offset().top - $("#header_place_holder").height() - parseInt($("body").css('margin-top'))
             }, 'slow');
         }
     }
@@ -1536,7 +1544,7 @@ function setHistory(to, history, precisionFunc, selectMeasurementType, startAtMi
 
         function scrollTo() {
             $('html, body').animate({
-                scrollTop: chartDiv.offset().top - $("#history_place_holder").height() - parseInt($("body").css('margin'))
+                scrollTop: chartDiv.offset().top - $("#history_place_holder").height() - parseInt($("body").css('margin-top'))
             }, 100);
         }
 
@@ -1575,7 +1583,7 @@ function setHistory(to, history, precisionFunc, selectMeasurementType, startAtMi
                         } else {
                             str = "ø " + count + " měření";
                         }
-                        return qualityLabel[emission_idx[idxValueFunc(tooltipItems.yLabel) + 1]] + " (" + (type !== "idx"? tooltipItems.yLabel + " µg/m³,": "") + str + ")";
+                        return qualityLabel[emission_idx[idxValueFunc(tooltipItems.yLabel) + 1]] + " (" + (type !== "idx"? tooltipItems.yLabel.toFixed(2) + " µg/m³,": "") + str + ")";
                     },
                     labelColor: function (tooltipItems, data) {
                         return {
