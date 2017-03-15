@@ -22,6 +22,8 @@ var myPatterns = {};
 var myHistoryStation;
 var userAction;
 var backNavigation;
+var exitPending = false;
+var exitPendingId = 0;
 
 // structural elements
 var main_page;
@@ -187,10 +189,24 @@ function initialize() {
         history.pushState("", document.title, window.location.pathname + window.location.search);
         $(window).on('popstate', function() {
             if (!closeUserAction()) {
-                // no outstanding action, navigate to main page
+                // no outstanding action on current page
                 if (typeof backNavigation !== "undefined") {
+                    // navigate to main page
                     backNavigation();
                     backNavigation = undefined;
+                } else {
+                    // back on homepage with no outstanding action
+                    console.log("Pending exit");
+                    exitPending = true;
+                    var myExit = ++exitPendingId;
+                    setTimeout(function () {
+                        if (exitPending && myExit == exitPendingId) {
+                            console.log("Pending exit timed out, pushing state to history");
+                            exitPending = false;
+                            history.pushState("", document.title, window.location.pathname + window.location.search);
+                        }
+                    }, 1000);
+                    return;
                 }
             }
             console.log("Pushing state to history");
@@ -566,7 +582,16 @@ function storeCurrentPlace() {
     }
 }
 
+function disablePendingExit() {
+    if (exitPending) {
+        console.log("Navigation disables pending exit, pushing state to history");
+        exitPending = false;
+        history.pushState("", document.title, window.location.pathname + window.location.search);
+    }
+}
+
 function toggleLocationPage() {
+    disablePendingExit();
     $("#location_page").toggleClass("invisible");
     main_page.toggleClass("invisible");
     if (main_page.hasClass("invisible")) {
@@ -581,6 +606,7 @@ function filterChangeHandler() {
 }
 
 function showFavoritesPage() {
+    disablePendingExit();
     main_page.addClass("invisible");
     $("#favorites_page").removeClass("invisible");
     backNavigation = hideFavoritesPage;
@@ -602,6 +628,7 @@ function orientationErr(err) {
 }
 
 function showHistoryPage() {
+    disablePendingExit();
     historySaveScrollTop = $(window).scrollTop();
     main_page.addClass("invisible");
     $("#history_page").removeClass("invisible");
