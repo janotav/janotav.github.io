@@ -674,6 +674,7 @@ function recalculatePlaceHolder(target, source) {
 
 function installPreventPullToReload() {
     var preventRefresh = false;
+    var customRefresh = false;
     var lastTouchY = 0;
 
     function touchstartHandler(e) {
@@ -682,6 +683,7 @@ function installPreventPullToReload() {
         }
         lastTouchY = e.touches[0].clientY;
         preventRefresh = window.pageYOffset == 0;
+        customRefresh = false;
     }
 
     function touchmoveHandler(e) {
@@ -694,10 +696,14 @@ function installPreventPullToReload() {
             if (touchYDelta > 0) {
                 console.log('Prevent default page reload');
                 e.preventDefault();
-
-                console.log('Perform custom page reload');
-                reload();
+                customRefresh = true;
             }
+        }
+
+        if (customRefresh && touchYDelta > 100) {
+            customRefresh = false;
+            console.log('Perform custom page reload');
+            reload();
         }
     }
 
