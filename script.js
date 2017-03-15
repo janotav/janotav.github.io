@@ -167,6 +167,8 @@ function initialize() {
         }).catch(function(err) {
             console.log('ServiceWorker registration failed: ', err);
         });
+
+        navigator.serviceWorker.addEventListener('message', notificationHandler);
     }
 
     loadMeta().then(function () {
@@ -1271,7 +1273,7 @@ messaging.onTokenRefresh(function() {
         });
 });
 
-messaging.onMessage(function(payload) {
+function notificationHandler(payload) {
     console.log("Message received, reload alarm and meta", payload);
 
     loadAlarm();
@@ -1280,7 +1282,9 @@ messaging.onMessage(function(payload) {
         toggleDetail(payload.data.stationCode, true);
         foregroundAlarm(parseInt(payload.data.stationIdx));
     });
-});
+}
+
+messaging.onMessage(notificationHandler);
 
 function foregroundAlarm(stationIdx) {
     var qualityClass = emission_idx[stationIdx + 1];
