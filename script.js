@@ -178,6 +178,10 @@ function initialize() {
                 toggleDetail(stationCode, true);
             }
         }
+        // make sure that we don't lose scroll position on "back"
+        if ("scrollRestoration" in history) {
+            history.scrollRestoration = "manual";
+        }
         // make sure "back" does not close the window
         history.pushState("", document.title, window.location.pathname + window.location.search);
         $(window).on('popstate', function() {
