@@ -930,6 +930,12 @@ function setDetail(stationCode, data) {
     $("#" + stationCode + "_spinner").addClass("invisible");
 
     var detail = $("#" + stationCode + "_detail");
+
+    var summaryDiv = $("<div class='detail_panel'>");
+    summaryDiv.addClass(station.qualityClass);
+    summaryDiv.text("Kvalita ovzduší: " + qualityLabel[station.qualityClass]);
+    detail.append(summaryDiv);
+
     data.forEach(function (measurement) {
         fixMeasurementIndex(measurement);
         if (measurement.idx < -1) {
@@ -950,7 +956,7 @@ function setDetail(stationCode, data) {
         detail.append(measurementDiv);
     });
 
-    if (detail.children().length == 0) {
+    if (detail.children().length == 1) { // only summary
         var noDataAvailable = $("<div class='nodata incomplete'>Nejsou k dispozici žádná měření</div>");
         detail.append(noDataAvailable);
     }
