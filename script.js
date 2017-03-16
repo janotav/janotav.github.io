@@ -1452,8 +1452,8 @@ function displayHistory(measurementType) {
     var days = $("#history_period > .select_item").data("value");
     var to = myMeta.date;
     var from = new Date(parseUtcDate(to).getTime() - 1000 * 60 * 60 * (24 * days - 1));
-    var startAtMidnight = (days > 1);
-    return loadHistory(myHistoryStation, toUtcDate(from), to, precisionFunc(days), measurementType, startAtMidnight).then(function (measurementTypeSelected) {
+    var multipleDays = (days > 1);
+    return loadHistory(myHistoryStation, toUtcDate(from), to, precisionFunc(days), measurementType, multipleDays).then(function (measurementTypeSelected) {
         if (!measurementTypeSelected) {
             updateMeasurementName();
         }
@@ -1612,7 +1612,7 @@ function sortMeasurements(a, b) {
     return wa == wb? 0: (wa < wb? -1: 1);
 }
 
-function setHistory(to, history, precisionFunc, selectMeasurementType, startAtMidnight) {
+function setHistory(to, history, precisionFunc, selectMeasurementType, multipleDays) {
     var charts = $("#history_charts");
     charts.empty();
     myCharts = [];
@@ -1677,13 +1677,20 @@ function setHistory(to, history, precisionFunc, selectMeasurementType, startAtMi
                 callbacks: {
                     label: function (tooltipItems, data) {
                         var count = history[type][(tooltipItems.index + startOffset) % 24][1];
-                        var str;
-                        if (count === 0) {
-                            str = "interpolace";
-                        } else {
-                            str = "ø " + count + " měření";
+                        var suffix = [];
+                        if (type !== "idx") {
+                            suffix.push(tooltipItems.yLabel.toFixed(2) + " µg/m³");
                         }
-                        return qualityLabel[emission_idx[idxValueFunc(tooltipItems.yLabel) + 1]] + " (" + (type !== "idx"? tooltipItems.yLabel.toFixed(2) + " µg/m³,": "") + str + ")";
+                        if (count === 0) {
+                            suffix.push("interpolace");
+                        } else if (multipleDays) {
+                            suffix.push("ø " + count + " měření");
+                        }
+                        var suffixStr = suffix.join(", ");
+                        if (suffixStr.length > 0) {
+                            suffixStr = " (" + suffixStr + ")";
+                        }
+                        return qualityLabel[emission_idx[idxValueFunc(tooltipItems.yLabel) + 1]] + suffixStr;
                     },
                     labelColor: function (tooltipItems, data) {
                         return {
@@ -1713,7 +1720,7 @@ function setHistory(to, history, precisionFunc, selectMeasurementType, startAtMi
         var dataset = createDataset(history[type], idxValueFunc, precisionFunc);
         var timeLabels = generateTimeLabels(to);
         var startOffset = 0;
-        if (startAtMidnight) {
+        if (multipleDays) {
             startOffset = timeLabels.indexOf("0:00");
             if (startOffset > 0) {
                 Array.prototype.push.apply(timeLabels, timeLabels.splice(0, startOffset));
@@ -1741,7 +1748,7 @@ function setHistory(to, history, precisionFunc, selectMeasurementType, startAtMi
     return measurementTypeSelected;
 }
 
-function loadHistory(station, from, to, precisionFunc, type, startAtMidnight) {
+function loadHistory(station, from, to, precisionFunc, type, multipleDays) {
     console.log('Retrieving station history data from the server');
     return new Promise(function (resolve, reject) {
         $.ajax({
@@ -1758,7 +1765,7 @@ function loadHistory(station, from, to, precisionFunc, type, startAtMidnight) {
             }
         }).done(function (result) {
             console.log("History query result: ", result);
-            var typeSelected = setHistory(to, result, precisionFunc, type, startAtMidnight);
+            var typeSelected = setHistory(to, result, precisionFunc, type, multipleDays);
             resolve(typeSelected);
         }).catch(function (err) {
             console.error("Failed to retrieve station history: ", err);
