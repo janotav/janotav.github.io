@@ -920,7 +920,10 @@ function fixMeasurementIndex(measurement) {
     }
 }
 
-function setDetail(stationCode, data) {
+function setDetail(pDetail) {
+    var stationCode = pDetail.code;
+    var data = pDetail.data;
+
     var station = myStations[stationCode];
 
     station.detail = {
@@ -934,6 +937,17 @@ function setDetail(stationCode, data) {
     var summaryDiv = $("<div class='detail_panel'>");
     summaryDiv.addClass(station.qualityClass);
     summaryDiv.text("Kvalita ovzduší: " + qualityLabel[station.qualityClass]);
+    if (typeof pDetail.lastIdx !== "undefined" && station.idx > 0) {
+        var trend = $("<i class='material-icons md-50'></i>");
+        if (pDetail.lastIdx < station.idx) {
+            trend.text("trending_down"); // getting worse
+        } else if (pDetail.lastIdx > station.idx) {
+            trend.text("trending_up"); // getting better
+        } else {
+            trend.text("trending_flat");
+        }
+        summaryDiv.append(trend);
+    }
     detail.append(summaryDiv);
 
     data.forEach(function (measurement) {
@@ -1807,6 +1821,8 @@ function loadDetail(stationCode) {
             url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/summary',
             method: 'GET',
             data: {
+                // TODO: compatibility - remove once server is updated
+                trend: true,
                 station: stationCode,
                 date: myMeta.date
             },
@@ -1814,12 +1830,15 @@ function loadDetail(stationCode) {
                 'x-api-key': 'api_key_public_access'
             }
         }).done(function (detail) {
-            console.log('Station ' + stationCode + ' data: ', detail);
-            setDetail(stationCode, detail);
+            console.log('Station data: ', detail);
+            setDetail(detail);
             resolve(detail);
         }).fail(function (err) {
             console.error('Station ' + stationCode + ' error: ', err);
-            setDetail(stationCode, []);
+            setDetail({
+                code: stationCode,
+                data: []
+            });
             reject(err);
         });
     });
