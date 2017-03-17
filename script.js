@@ -937,7 +937,7 @@ function setDetail(pDetail) {
     var summaryDiv = $("<div class='detail_panel'>");
     summaryDiv.addClass(station.qualityClass);
     summaryDiv.text("Kvalita ovzduší: " + qualityLabel[station.qualityClass]);
-    if (typeof pDetail.lastIdx !== "undefined" && station.idx > 0) {
+    if (typeof pDetail.lastIdx !== "undefined" && station.idx > 0 && pDetail.lastIdx > 0) {
         var trend = $("<i class='material-icons md-50'></i>");
         if (pDetail.lastIdx < station.idx) {
             trend.text("trending_down"); // getting worse
@@ -1821,8 +1821,6 @@ function loadDetail(stationCode) {
             url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/summary',
             method: 'GET',
             data: {
-                // TODO: compatibility - remove once server is updated
-                trend: true,
                 station: stationCode,
                 date: myMeta.date
             },
