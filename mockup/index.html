@@ -1,0 +1,396 @@
+<html>
+<head>
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Swiper/3.4.2/css/swiper.min.css">
+<meta name="viewport" content="user-scalable=no"/>
+</head>
+<script src="https://use.fontawesome.com/dd6ad41192.js"></script>
+<!--<script src="https://www.gstatic.com/firebasejs/3.6.9/firebase-app.js"></script>-->
+<!--<script src="https://www.gstatic.com/firebasejs/3.6.9/firebase-messaging.js"></script>-->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<!--<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.min.js"></script>-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Swiper/3.4.2/js/swiper.jquery.min.js"></script>
+<script type="text/javascript">
+    $(document).ready(function() {
+
+        // stations loaded before alarm
+        setTimeout(function() {
+            $("#stations_running").remove();
+            $("#stations").toggleClass("stations invisible");
+            $("#stations_time").removeClass("invisible");
+
+            $("#alarm_running").toggleClass("running invisible");
+            setTimeout(function() {
+                $("#alarm_running").remove();
+                $("#alarm_icon").toggleClass("alarm invisible");
+                $("#alarm_location_outer").toggleClass("alarm_location invisible");
+            }, 1000);
+        }, 2000);
+
+        // alarm loaded before stations wait for stations
+//        setTimeout(function() {
+//            $("#alarm_running").remove();
+//            $("#alarm_icon").toggleClass("alarm invisible");
+//            $("#alarm_location_outer").toggleClass("alarm_location invisible");
+//
+//            $("#stations_running").remove();
+//            $("#stations").toggleClass("stations invisible");
+//            $("#stations_time").removeClass("invisible");
+//        }, 3000);
+
+
+        $("#menu_expander").click(function () {
+            $("#menu_items").toggleClass("invisible");
+        });
+
+        $("#menu_search").click(function () {
+            $("#search").toggleClass("invisible");
+            $("#menu_items").toggleClass("invisible");
+        });
+
+        $("#ALIBA").click(function () {
+            $("#ALIBA_detail").toggleClass("invisible");
+        });
+
+        $("#search_close").click(function () {
+            $("#search").toggleClass("invisible");
+        });
+
+        var alarmFunc0 = [
+            function () {
+                $("#alarm_location_outer").toggleClass("inactive");
+                $("#alarm_location").text("Praha 4-Libuš");
+                $("#alarm_value").text("Velmi dobrá");
+                $("#alarm_value").toggleClass("very_good");
+                $("#alarm_level_number").text("3");
+                $("#alarm_level_number").toggleClass("satisfactory");
+                $("#alarm_level").text("Uspokojivá");
+                $("#alarm_level").toggleClass("satisfactory");
+                $("#alarm_direction").text(" nebo horší");
+                $("#alarm_icon").toggleClass("inactive");
+
+            },
+            function () {
+                $("#alarm_level_number").toggleClass("quality_improvement");
+                $("#alarm_direction").text(" nebo lepší");
+            },
+            function () {
+                $("#alarm_location_outer").toggleClass("inactive");
+                $("#alarm_location").text("");
+                $("#alarm_value").text("");
+                $("#alarm_value").toggleClass("very_good");
+                $("#alarm_level_number").html("&nbsp;");
+                $("#alarm_level_number").toggleClass("satisfactory quality_improvement");
+                $("#alarm_level").html("nenastaveno");
+                $("#alarm_level").toggleClass("satisfactory");
+                $("#alarm_direction").text("");
+                $("#alarm_icon").toggleClass("inactive");
+                alarmFunc.push.apply(alarmFunc, alarmFunc0);
+            }
+        ];
+        var alarmFunc = alarmFunc0.slice();
+
+        $("#alarm_icon").click(function () {
+            alarmFunc.shift()();
+        });
+
+        $(".slide_body").each(function (index, element) {
+            $(element).css("height", window.innerHeight - $(".footer").outerHeight() - $(element).closest(".swiper-slide").find(".slide_header").outerHeight());
+        });
+
+        var pager = [
+                '<i class="fa fa-leaf page" aria-hidden="true"></i>',
+                '<i class="fa fa-sun-o page" aria-hidden="true"></i>'
+        ];
+
+        var options = {
+            direction: 'horizontal',
+            effect: 'cube',
+
+            pagination: '.swiper-pagination',
+            paginationClickable: true,
+            paginationBulletRender: function (swiper, index, className) {
+                return pager[index];
+            },
+            bulletClass: 'page',
+            bulletActiveClass: 'page-active'
+        };
+        new Swiper('.swiper-container', options);
+    });
+</script>
+<style media="screen" type="text/css">
+    body {
+        background: black;
+        color: white;
+        font-size: 50px;
+    }
+
+    input {
+        font-size: 1.1em;
+    }
+
+    .swiper-pagination {
+        position: inherit;
+    }
+
+    .slide_body {
+        overflow: auto;
+        background: black;
+    }
+
+    .slide_header {
+        padding-bottom: 10px;
+    }
+
+    .invisible {
+        display: none;
+    }
+
+    .inactive {
+        opacity: 0.5;
+    }
+
+    .page {
+        opacity: 0.5;
+        padding: 10px;
+        margin: 5px;
+        border: solid;
+        border-radius: 20%;
+    }
+
+    .page-active {
+        opacity: 1;
+    }
+
+    .footer {
+        position: fixed;
+        z-index: 2;
+        bottom: 0;
+        left: 0;
+        height: 200px;
+        width: 100%;
+        background: black;
+        padding-top: 15px;
+
+        display: flex;
+        flex-direction: column;
+    }
+
+    .actions {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .action {
+        padding: 30px;
+    }
+
+    .menu_expander {
+        align-self: flex-end;
+    }
+
+    .menu {
+        position: fixed;
+        bottom: 0;
+        right: 15px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .menu_item {
+        background: black;
+        padding: 20px 30px;
+        border: 1px solid darkgray;
+    }
+
+    div.alarm {
+        background-image: url('../img/alarm.png');
+        width: 150px;
+        height: 150px;
+        display: inline-flex;
+        flex-direction: column;
+        justify-content: space-around;
+        align-items: center;
+    }
+
+    .alarm_location {
+        display: inline-flex;
+        flex-direction: column;
+        vertical-align: middle;
+    }
+
+    .alarm_toggle {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+
+    .quality_improvement {
+        border-radius: 50%;
+    }
+
+    .time {
+        display: inline-block;
+        border-bottom: 1px solid #FFFFFF;
+    }
+
+    input.search {
+        width: 50%;
+    }
+
+    .very_bad { background:  #671F20; color: #FFFFFF }
+    .bad { background: #ED1C24; color: #FFFFFF }
+    .acceptable { background: #FAA61A; color: #000000 }
+    .satisfactory { background: #FFF200; color: #000000  }
+    .good { background: #9BD3AE; color: #000000  }
+    .very_good { background: #C7EAFB; color: #000000  }
+    .incomplete { background: #FFFFFF; color: #000000 }
+    .undetermined { background: #CFCFCF; color: #000000 }
+
+    .running {
+        width: 100%;
+        height: 100%;
+        display: inline-flex;
+        flex-direction: column;
+        justify-content: space-around;
+        align-items: center;
+    }
+
+    .stations {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .station {
+        text-align:center;
+        padding: 8px;
+        position: relative;
+        border: 1px solid #000000;
+        -moz-box-shadow: inset 6px 6px 6px rgba(255, 255, 255, .4), inset -6px -6px 6px rgba(0, 0, 0, .4);
+        -webkit-box-shadow: inset 6px 6px 6px rgba(255, 255, 255, .4), inset -6px -6px 6px rgba(0, 0, 0, .4);
+        box-shadow: inset 6px 6px 6px rgba(255, 255, 255, .4), inset -6px -6px 6px rgba(0, 0, 0, .4);
+    }
+
+    .measurement {
+        padding: 5px;
+        font-size: 40%;
+    }
+
+    .distance {
+        display: block;
+        font-size: 75%;
+        opacity: 0.75;
+    }
+
+    .detail_panel {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        padding: 10px;
+    }
+
+    .alarm_panel {
+        justify-content: space-between;
+    }
+
+    .padt {
+        padding-top: 10px;
+    }
+
+    .padr {
+        padding-right: 10px;
+    }
+
+    .padl {
+        padding-left: 10px;
+    }
+
+    .material-icons.md-50 {
+        font-size: 50px;
+    }
+
+    .material-icons.md-34 {
+        font-size: 34px;
+    }
+
+</style>
+<body>
+<div class="swiper-container">
+    <div class="swiper-wrapper">
+        <div class="swiper-slide slide0">
+            <div id="header0" class="slide_header">
+                <div id="alarm_running" class="invisible" style="height: 150px;"> <!-- class: running -->
+                    <i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"></i>
+                </div>
+                <div id="alarm_icon" class="invisible inactive"> <!-- class: alarm -->
+                    <span id="alarm_level_number" class="alarm_toggle">&nbsp;</span>
+                </div>
+                <div id="alarm_location_outer" class="invisible inactive"> <!-- class: alarm_location -->
+                    <div><span id="alarm_location"></span> <span id="alarm_value"></span></div>
+                    <div>upozornění <span id="alarm_level">nenastaveno</span> <span id="alarm_direction"></span></div>
+                </div>
+                <div id="stations_time" class="invisible">
+                    <div class="time">
+                        Čas měření <span id="time">18. 3. 2017 12:00:00</span>
+                    </div>
+                    <i id="time_spin" class="fa fa-refresh fa-fw"></i>
+                </div>
+                <div id="search" class="padt invisible">
+                    <input id="search_input" type="text" placeholder="Jméno stanice" class="search"/><i id="search_close" class="fa fa-times search padl" aria-hidden="true"></i>
+                </div>
+            </div>
+            <div class="slide_body">
+                <div id="stations_running" class="running">
+                    <i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"></i>
+                </div>
+                <div id="stations" class="invisible">
+                    <div id="ALIBA" class="station very_good" style="order: 224;">Praha 4-Libuš<span class="distance" id="ALIBA_distance">2.25 km, Praha</span><div class="invisible small_spinner very_good_spinner" id="ALIBA_spinner"></div></div>
+                    <div id="ALIBA_detail" class="detail invisible" style="order: 224;">
+                        <div class="detail_panel very_good">Kvalita ovzduší: Velmi dobrá<i class="material-icons md-50">trending_flat</i></div>
+                        <div class="measurement very_good"><div>Oxid siřičitý: 1.3 µg/m³</div><div><span class="limit">Velmi dobrá (0 - 25 µg/m³)</span></div></div>
+                        <div class="measurement very_good"><div>Oxid dusičitý: 9.8 µg/m³</div><div><span class="limit">Velmi dobrá (0 - 25 µg/m³)</span></div></div>
+                        <div class="measurement very_good"><div>Oxid uhelnatý: 206 µg/m³</div><div><span class="limit">Velmi dobrá (0 - 1000 µg/m³)</span></div></div>
+                        <div class="measurement very_good"><div>Prach 10 µm: 5.5 µg/m³</div><div><span class="limit">Velmi dobrá (0 - 20 µg/m³)</span></div></div>
+                        <div class="measurement good"><div>Ozon: 61.2 µg/m³</div><div><span class="limit">Dobrá (33 - 65 µg/m³)</span></div></div>
+                        <div class="measurement very_good"><div>Prach 2,5 µm: 5.1 µg/m³</div><div><span class="limit">Velmi dobrá (0 - 20 µg/m³)</span></div></div>
+                        <div class="detail_panel very_good"><i class="fa fa-bar-chart padr" aria-hidden="true"></i>Historie měření</div>
+                        <div class="detail_panel alarm_panel very_good">Upozornění<div class="alarm_toggle very_good" id="ALIBA_very_good">|</div><div class="alarm_toggle good" id="ALIBA_good">2</div><div class="alarm_toggle satisfactory" id="ALIBA_satisfactory">3</div><div class="alarm_toggle acceptable" id="ALIBA_acceptable">4</div><div class="alarm_toggle bad" id="ALIBA_bad">5</div><div class="alarm_toggle very_bad" id="ALIBA_very_bad">6</div></div>
+                    </div>
+
+                    <div class="station very_good" id="SPBRA" style="order: 4709;">Příbram-Březové Hory<span class="distance" id="SPBRA_distance">47.09 km, Středočeský</span><div class="invisible small_spinner very_good_spinner" id="SPBRA_spinner"></div></div><div class="detail invisible" id="SPBRA_detail" style="order: 4709;"></div><div class="station very_good" id="SBERA" style="order: 2609;">Beroun<span class="distance" id="SBERA_distance">26.09 km, Středočeský</span><div class="invisible small_spinner very_good_spinner" id="SBERA_spinner"></div></div><div class="detail invisible" id="SBERA_detail" style="order: 2609;"></div><div class="station very_good" id="SKLSA" style="order: 2911;">Kladno-Švermov<span class="distance" id="SKLSA_distance">29.11 km, Středočeský</span><div class="invisible small_spinner very_good_spinner" id="SKLSA_spinner"></div></div><div class="detail invisible" id="SKLSA_detail" style="order: 2911;"></div><div class="station undetermined" id="SONRA" style="order: 2776;">Ondřejov<span class="distance" id="SONRA_distance">27.76 km, Středočeský</span><div class="invisible small_spinner undetermined_spinner" id="SONRA_spinner"></div></div><div class="detail invisible" id="SONRA_detail" style="order: 2776;"></div><div class="station very_good" id="SRORA" style="order: 6385;">Rožďalovice-Ruská<span class="distance" id="SRORA_distance">63.85 km, Středočeský</span><div class="invisible small_spinner very_good_spinner" id="SRORA_spinner"></div></div><div class="detail invisible" id="SRORA_detail" style="order: 6385;"></div><div class="station undetermined" id="STCSA" style="order: 2477;">Tobolka-Čertovy schody<span class="distance" id="STCSA_distance">24.77 km, Středočeský</span><div class="invisible small_spinner undetermined_spinner" id="STCSA_spinner"></div></div><div class="detail invisible" id="STCSA_detail" style="order: 2477;"></div><div class="station very_good" id="SKLMA" style="order: 2775;">Kladno-střed města<span class="distance" id="SKLMA_distance">27.75 km, Středočeský</span><div class="invisible small_spinner very_good_spinner" id="SKLMA_spinner"></div></div><div class="detail invisible" id="SKLMA_detail" style="order: 2775;"></div><div class="station very_good" id="SMBOA" style="order: 5946;">Mladá Boleslav<span class="distance" id="SMBOA_distance">59.46 km, Středočeský</span><div class="invisible small_spinner very_good_spinner" id="SMBOA_spinner"></div></div><div class="detail invisible" id="SMBOA_detail" style="order: 5946;"></div><div class="station undetermined" id="JKMYA" style="order: 11887;">Kostelní Myslová<span class="distance" id="JKMYA_distance">118.87 km, Vysočina</span><div class="invisible small_spinner undetermined_spinner" id="JKMYA_spinner"></div></div><div class="detail invisible" id="JKMYA_detail" style="order: 11887;"></div><div class="station very_good" id="JJIZA" style="order: 10801;">Jihlava-Znojemská<span class="distance" id="JJIZA_distance">108.01 km, Vysočina</span><div class="invisible small_spinner very_good_spinner" id="JJIZA_spinner"></div></div><div class="detail invisible" id="JJIZA_detail" style="order: 10801;"></div><div class="station very_good" id="JHBSA" style="order: 9411;">Havl.Brod-Smetan.nám.<span class="distance" id="JHBSA_distance">94.11 km, Vysočina</span><div class="invisible small_spinner very_good_spinner" id="JHBSA_spinner"></div></div><div class="detail invisible" id="JHBSA_detail" style="order: 9411;"></div><div class="station very_good" id="JJIHA" style="order: 10844;">Jihlava<span class="distance" id="JJIHA_distance">108.44 km, Vysočina</span><div class="invisible small_spinner very_good_spinner" id="JJIHA_spinner"></div></div><div class="detail invisible" id="JJIHA_detail" style="order: 10844;"></div><div class="station very_good" id="JZNZA" style="order: 11990;">Ždár nad Sázavou<span class="distance" id="JZNZA_distance">119.9 km, Vysočina</span><div class="invisible small_spinner very_good_spinner" id="JZNZA_spinner"></div></div><div class="detail invisible" id="JZNZA_detail" style="order: 11990;"></div><div class="station good" id="JKOSA" style="order: 6706;">Košetice<span class="distance" id="JKOSA_distance">67.06 km, Vysočina</span><div class="invisible small_spinner good_spinner" id="JKOSA_spinner"></div></div><div class="detail invisible" id="JKOSA_detail" style="order: 6706;"></div><div class="station very_good" id="JTREA" style="order: 13532;">Třebíč<span class="distance" id="JTREA_distance">135.32 km, Vysočina</span><div class="invisible small_spinner very_good_spinner" id="JTREA_spinner"></div></div><div class="detail invisible" id="JTREA_detail" style="order: 13532;"></div><div class="station very_good" id="ALEGA" style="order: 828;">Praha 2-Legerova (hot spot)<span class="distance" id="ALEGA_distance">8.28 km, Praha</span><div class="invisible small_spinner very_good_spinner" id="ALEGA_spinner"></div></div><div class="detail invisible" id="ALEGA_detail" style="order: 828;"></div><div class="station good" id="ASMIA" style="order: 843;">Praha 5-Smíchov<span class="distance" id="ASMIA_distance">8.43 km, Praha</span><div class="invisible small_spinner good_spinner" id="ASMIA_spinner"></div></div><div class="detail invisible" id="ASMIA_detail" style="order: 843;"></div><div class="station very_good" id="ACHOA" style="order: 796;">Praha 4-Chodov<span class="distance" id="ACHOA_distance">7.96 km, Praha</span><div class="invisible small_spinner very_good_spinner" id="ACHOA_spinner"></div></div><div class="detail invisible" id="ACHOA_detail" style="order: 796;"></div><div class="station very_good" id="AVYNA" style="order: 1394;">Praha 9-Vysočany<span class="distance" id="AVYNA_distance">13.94 km, Praha</span><div class="invisible small_spinner very_good_spinner" id="AVYNA_spinner"></div></div><div class="detail invisible" id="AVYNA_detail" style="order: 1394;"></div><div class="station very_good" id="ARIEA" style="order: 941;">Praha 2-Riegrovy sady<span class="distance" id="ARIEA_distance">9.41 km, Praha</span><div class="invisible small_spinner very_good_spinner" id="ARIEA_spinner"></div></div><div class="detail invisible" id="ARIEA_detail" style="order: 941;"></div><div class="station very_good" id="ASTOA" style="order: 813;">Praha 5-Stodůlky<span class="distance" id="ASTOA_distance">8.13 km, Praha</span><div class="invisible small_spinner very_good_spinner" id="ASTOA_spinner"></div></div><div class="detail invisible" id="ASTOA_detail" style="order: 813;"></div><div class="station very_good" id="AKOBA" style="order: 1422;">Praha 8-Kobylisy<span class="distance" id="AKOBA_distance">14.22 km, Praha</span><div class="invisible small_spinner very_good_spinner" id="AKOBA_spinner"></div></div><div class="detail invisible" id="AKOBA_detail" style="order: 1422;"></div><div class="station very_good" id="APRUA" style="order: 1114;">Praha 10-Průmyslová<span class="distance" id="APRUA_distance">11.14 km, Praha</span><div class="invisible small_spinner very_good_spinner" id="APRUA_spinner"></div></div><div class="detail invisible" id="APRUA_detail" style="order: 1114;"></div><div class="station very_good" id="AVRSA" style="order: 783;">Praha 10-Vršovice<span class="distance" id="AVRSA_distance">7.83 km, Praha</span><div class="invisible small_spinner very_good_spinner" id="AVRSA_spinner"></div></div><div class="detail invisible" id="AVRSA_detail" style="order: 783;"></div><div class="station very_good" id="AKALA" style="order: 1080;">Praha 8-Karlín<span class="distance" id="AKALA_distance">10.8 km, Praha</span><div class="invisible small_spinner very_good_spinner" id="AKALA_spinner"></div></div><div class="detail invisible" id="AKALA_detail" style="order: 1080;"></div><div class="station good" id="ASUCA" style="order: 1444;">Praha 6-Suchdol<span class="distance" id="ASUCA_distance">14.44 km, Praha</span><div class="invisible small_spinner good_spinner" id="ASUCA_spinner"></div></div><div class="detail invisible" id="ASUCA_detail" style="order: 1444;"></div><div class="station very_good" id="ABREA" style="order: 993;">Praha 6-Břevnov<span class="distance" id="ABREA_distance">9.93 km, Praha</span><div class="invisible small_spinner very_good_spinner" id="ABREA_spinner"></div></div><div class="detail invisible" id="ABREA_detail" style="order: 993;"></div><div class="station very_good" id="AREPA" style="order: 1000;">Praha 1-n. Republiky<span class="distance" id="AREPA_distance">10 km, Praha</span><div class="invisible small_spinner very_good_spinner" id="AREPA_spinner"></div></div><div class="detail invisible" id="AREPA_detail" style="order: 1000;"></div><div class="station very_good" id="HHKBA" style="order: 10424;">Hradec Králové-Brněnská<span class="distance" id="HHKBA_distance">104.24 km, Královéhradecký</span><div class="invisible small_spinner very_good_spinner" id="HHKBA_spinner"></div></div><div class="detail invisible" id="HHKBA_detail" style="order: 10424;"></div><div class="station very_good" id="HPLOA" style="order: 14118;">Polom<span class="distance" id="HPLOA_distance">141.18 km, Královéhradecký</span><div class="invisible small_spinner very_good_spinner" id="HPLOA_spinner"></div></div><div class="detail invisible" id="HPLOA_detail" style="order: 14118;"></div><div class="station very_good" id="HTRTA" style="order: 12302;">Trutnov - Tkalcovská<span class="distance" id="HTRTA_distance">123.02 km, Královéhradecký</span><div class="invisible small_spinner very_good_spinner" id="HTRTA_spinner"></div></div><div class="detail invisible" id="HTRTA_detail" style="order: 12302;"></div><div class="station undetermined" id="HKRYA" style="order: 12553;">Krkonoše-Rýchory<span class="distance" id="HKRYA_distance">125.53 km, Královéhradecký</span><div class="invisible small_spinner undetermined_spinner" id="HKRYA_spinner"></div></div><div class="detail invisible" id="HKRYA_detail" style="order: 12553;"></div><div class="station undetermined" id="HHKOK" style="order: 10330;">Hradec Králové-observatoř<span class="distance" id="HHKOK_distance">103.3 km, Královéhradecký</span><div class="invisible small_spinner undetermined_spinner" id="HHKOK_spinner"></div></div><div class="detail invisible" id="HHKOK_detail" style="order: 10330;"></div><div class="station very_good" id="ZZLNA" style="order: 24908;">Zlín<span class="distance" id="ZZLNA_distance">249.08 km, Zlínský</span><div class="invisible small_spinner very_good_spinner" id="ZZLNA_spinner"></div></div><div class="detail invisible" id="ZZLNA_detail" style="order: 24908;"></div><div class="station very_good" id="ZTNVA" style="order: 23068;">Těšnovice<span class="distance" id="ZTNVA_distance">230.68 km, Zlínský</span><div class="invisible small_spinner very_good_spinner" id="ZTNVA_spinner"></div></div><div class="detail invisible" id="ZTNVA_detail" style="order: 23068;"></div><div class="station very_good" id="ZVMZA" style="order: 26168;">Valašské Meziříčí<span class="distance" id="ZVMZA_distance">261.68 km, Zlínský</span><div class="invisible small_spinner very_good_spinner" id="ZVMZA_spinner"></div></div><div class="detail invisible" id="ZVMZA_detail" style="order: 26168;"></div><div class="station good" id="ZUHRA" style="order: 24313;">Uherské Hradiště<span class="distance" id="ZUHRA_distance">243.13 km, Zlínský</span><div class="invisible small_spinner good_spinner" id="ZUHRA_spinner"></div></div><div class="detail invisible" id="ZUHRA_detail" style="order: 24313;"></div><div class="station incomplete" id="ZOTMA" style="order: 24115;">Otrokovice-město<span class="distance" id="ZOTMA_distance">241.15 km, Zlínský</span><div class="invisible small_spinner incomplete_spinner" id="ZOTMA_spinner"></div></div><div class="detail invisible" id="ZOTMA_detail" style="order: 24115;"></div><div class="station undetermined" id="ZSNVA" style="order: 27983;">Štítná n.Vláří<span class="distance" id="ZSNVA_distance">279.83 km, Zlínský</span><div class="invisible small_spinner undetermined_spinner" id="ZSNVA_spinner"></div></div><div class="detail invisible" id="ZSNVA_detail" style="order: 27983;"></div><div class="station very_good" id="EPAUA" style="order: 9622;">Pardubice Dukla<span class="distance" id="EPAUA_distance">96.22 km, Pardubický</span><div class="invisible small_spinner very_good_spinner" id="EPAUA_spinner"></div></div><div class="detail invisible" id="EPAUA_detail" style="order: 9622;"></div><div class="station undetermined" id="ESVRA" style="order: 11950;">Svratouch<span class="distance" id="ESVRA_distance">119.5 km, Pardubický</span><div class="invisible small_spinner undetermined_spinner" id="ESVRA_spinner"></div></div><div class="detail invisible" id="ESVRA_detail" style="order: 11950;"></div><div class="station undetermined" id="EPAOA" style="order: 9456;">Pardubice-Rosice<span class="distance" id="EPAOA_distance">94.56 km, Pardubický</span><div class="invisible small_spinner undetermined_spinner" id="EPAOA_spinner"></div></div><div class="detail invisible" id="EPAOA_detail" style="order: 9456;"></div><div class="station very_good" id="EMTPA" style="order: 16333;">Moravská Třebová - Piaristická.<span class="distance" id="EMTPA_distance">163.33 km, Pardubický</span><div class="invisible small_spinner very_good_spinner" id="EMTPA_spinner"></div></div><div class="detail invisible" id="EMTPA_detail" style="order: 16333;"></div><div class="station very_good" id="PPLAA" style="order: 7855;">Plzeň-Slovany<span class="distance" id="PPLAA_distance">78.55 km, Plzeňský</span><div class="invisible small_spinner very_good_spinner" id="PPLAA_spinner"></div></div><div class="detail invisible" id="PPLAA_detail" style="order: 7855;"></div><div class="station very_good" id="PPMOA" style="order: 8359;">Plzeň - mobil 20.03.2013 Plzeň - Litice<span class="distance" id="PPMOA_distance">83.59 km, Plzeňský</span><div class="invisible small_spinner very_good_spinner" id="PPMOA_spinner"></div></div><div class="detail invisible" id="PPMOA_detail" style="order: 8359;"></div><div class="station very_good" id="PPLEA" style="order: 7936;">Plzeň-střed<span class="distance" id="PPLEA_distance">79.36 km, Plzeňský</span><div class="invisible small_spinner very_good_spinner" id="PPLEA_spinner"></div></div><div class="detail invisible" id="PPLEA_detail" style="order: 7936;"></div><div class="station incomplete" id="PPLSA" style="order: 8347;">Plzeň-Skvrňany<span class="distance" id="PPLSA_distance">83.47 km, Plzeňský</span><div class="invisible small_spinner incomplete_spinner" id="PPLSA_spinner"></div></div><div class="detail invisible" id="PPLSA_detail" style="order: 8347;"></div><div class="station incomplete" id="PPLBA" style="order: 8050;">Plzeň-Bory<span class="distance" id="PPLBA_distance">80.5 km, Plzeňský</span><div class="invisible small_spinner incomplete_spinner" id="PPLBA_spinner"></div></div><div class="detail invisible" id="PPLBA_detail" style="order: 8050;"></div><div class="station undetermined" id="PPRMA" style="order: 13002;">Přimda<span class="distance" id="PPRMA_distance">130.02 km, Plzeňský</span><div class="invisible small_spinner undetermined_spinner" id="PPRMA_spinner"></div></div><div class="detail invisible" id="PPRMA_detail" style="order: 13002;"></div><div class="station very_good" id="PKUJA" style="order: 6501;">Kamenný Újezd<span class="distance" id="PKUJA_distance">65.01 km, Plzeňský</span><div class="invisible small_spinner very_good_spinner" id="PKUJA_spinner"></div></div><div class="detail invisible" id="PKUJA_detail" style="order: 6501;"></div><div class="station very_good" id="PPLVA" style="order: 7568;">Plzeň-Doubravka<span class="distance" id="PPLVA_distance">75.68 km, Plzeňský</span><div class="invisible small_spinner very_good_spinner" id="PPLVA_spinner"></div></div><div class="detail invisible" id="PPLVA_detail" style="order: 7568;"></div><div class="station very_good" id="PPLLA" style="order: 7936;">Plzeň-Lochotín<span class="distance" id="PPLLA_distance">79.36 km, Plzeňský</span><div class="invisible small_spinner very_good_spinner" id="PPLLA_spinner"></div></div><div class="detail invisible" id="PPLLA_detail" style="order: 7936;"></div><div class="station undetermined" id="TOPOA" style="order: 26858;">Ostrava-Poruba/ČHMÚ<span class="distance" id="TOPOA_distance">268.58 km, Moravskoslezský</span><div class="invisible small_spinner undetermined_spinner" id="TOPOA_spinner"></div></div><div class="detail invisible" id="TOPOA_detail" style="order: 26858;"></div><div class="station very_good" id="TKAOK" style="order: 29672;">Karviná-ZÚ<span class="distance" id="TKAOK_distance">296.72 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="TKAOK_spinner"></div></div><div class="detail invisible" id="TKAOK_detail" style="order: 29672;"></div><div class="station very_good" id="TCTNA" style="order: 30165;">Český Těšín<span class="distance" id="TCTNA_distance">301.65 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="TCTNA_spinner"></div></div><div class="detail invisible" id="TCTNA_detail" style="order: 30165;"></div><div class="station very_good" id="TOVKA" style="order: 24978;">Opava-Kateřinky<span class="distance" id="TOVKA_distance">249.78 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="TOVKA_spinner"></div></div><div class="detail invisible" id="TOVKA_detail" style="order: 24978;"></div><div class="station very_good" id="TOROK" style="order: 28159;">Ostrava-Radvanice OZO<span class="distance" id="TOROK_distance">281.59 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="TOROK_spinner"></div></div><div class="detail invisible" id="TOROK_detail" style="order: 28159;"></div><div class="station satisfactory" id="TOREK" style="order: 28163;">Ostrava-Radvanice ZÚ<span class="distance" id="TOREK_distance">281.63 km, Moravskoslezský</span><div class="invisible small_spinner satisfactory_spinner" id="TOREK_spinner"></div></div><div class="detail invisible" id="TOREK_detail" style="order: 28163;"></div><div class="station undetermined" id="TCERA" style="order: 22516;">Červená hora<span class="distance" id="TCERA_distance">225.16 km, Moravskoslezský</span><div class="invisible small_spinner undetermined_spinner" id="TCERA_spinner"></div></div><div class="detail invisible" id="TCERA_detail" style="order: 22516;"></div><div class="station very_good" id="TCTAA" style="order: 30255;">Český Těšín-autobusové nádraží<span class="distance" id="TCTAA_distance">302.55 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="TCTAA_spinner"></div></div><div class="detail invisible" id="TCTAA_detail" style="order: 30255;"></div><div class="station very_good" id="TONVA" style="order: 27400;">Ostrava Nová Ves-areál OVak<span class="distance" id="TONVA_distance">274 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="TONVA_spinner"></div></div><div class="detail invisible" id="TONVA_detail" style="order: 27400;"></div><div class="station very_good" id="TKARA" style="order: 29623;">Karviná<span class="distance" id="TKARA_distance">296.23 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="TKARA_spinner"></div></div><div class="detail invisible" id="TKARA_detail" style="order: 29623;"></div><div class="station very_good" id="TOPRA" style="order: 27617;">Ostrava-Přívoz<span class="distance" id="TOPRA_distance">276.17 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="TOPRA_spinner"></div></div><div class="detail invisible" id="TOPRA_detail" style="order: 27617;"></div><div class="station very_good" id="TOFFA" style="order: 27590;">Ostrava-Fifejdy<span class="distance" id="TOFFA_distance">275.9 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="TOFFA_spinner"></div></div><div class="detail invisible" id="TOFFA_detail" style="order: 27590;"></div><div class="station very_good" id="TOCBA" style="order: 27777;">Ostrava-Českobratrská (hot spot)<span class="distance" id="TOCBA_distance">277.77 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="TOCBA_spinner"></div></div><div class="detail invisible" id="TOCBA_detail" style="order: 27777;"></div><div class="station very_good" id="TTROA" style="order: 30770;">Třinec-Kosmos<span class="distance" id="TTROA_distance">307.7 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="TTROA_spinner"></div></div><div class="detail invisible" id="TTROA_detail" style="order: 30770;"></div><div class="station very_good" id="TOUZA" style="order: 24951;">Opava-univerzitní zahrada<span class="distance" id="TOUZA_distance">249.51 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="TOUZA_spinner"></div></div><div class="detail invisible" id="TOUZA_detail" style="order: 24951;"></div><div class="station very_good" id="TOZRA" style="order: 27519;">Ostrava-Zábřeh<span class="distance" id="TOZRA_distance">275.19 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="TOZRA_spinner"></div></div><div class="detail invisible" id="TOZRA_detail" style="order: 27519;"></div><div class="station very_good" id="TTRKA" style="order: 30516;">Třinec-Kanada<span class="distance" id="TTRKA_distance">305.16 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="TTRKA_spinner"></div></div><div class="detail invisible" id="TTRKA_detail" style="order: 30516;"></div><div class="station very_good" id="TOMHK" style="order: 27604;">Ostrava-Mariánské Hory<span class="distance" id="TOMHK_distance">276.04 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="TOMHK_spinner"></div></div><div class="detail invisible" id="TOMHK_detail" style="order: 27604;"></div><div class="station undetermined" id="TBKRA" style="order: 30111;">Bílý Kř��ž<span class="distance" id="TBKRA_distance">301.11 km, Moravskoslezský</span><div class="invisible small_spinner undetermined_spinner" id="TBKRA_spinner"></div></div><div class="detail invisible" id="TBKRA_detail" style="order: 30111;"></div><div class="station very_good" id="TFMIA" style="order: 28440;">Frýdek-Místek<span class="distance" id="TFMIA_distance">284.4 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="TFMIA_spinner"></div></div><div class="detail invisible" id="TFMIA_detail" style="order: 28440;"></div><div class="station very_good" id="TSTDA" style="order: 26497;">Studénka<span class="distance" id="TSTDA_distance">264.97 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="TSTDA_spinner"></div></div><div class="detail invisible" id="TSTDA_detail" style="order: 26497;"></div><div class="station very_good" id="TVERA" style="order: 28658;">Věřňovice<span class="distance" id="TVERA_distance">286.58 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="TVERA_spinner"></div></div><div class="detail invisible" id="TVERA_detail" style="order: 28658;"></div><div class="station very_good" id="TOPDA" style="order: 26891;">Ostrava-Poruba, DD<span class="distance" id="TOPDA_distance">268.91 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="TOPDA_spinner"></div></div><div class="detail invisible" id="TOPDA_detail" style="order: 26891;"></div><div class="station very_good" id="THARA" style="order: 28664;">Havířov<span class="distance" id="THARA_distance">286.64 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="THARA_spinner"></div></div><div class="detail invisible" id="THARA_detail" style="order: 28664;"></div><div class="station very_good" id="TRYCA" style="order: 28371;">Rychvald<span class="distance" id="TRYCA_distance">283.71 km, Moravskoslezský</span><div class="invisible small_spinner very_good_spinner" id="TRYCA_spinner"></div></div><div class="detail invisible" id="TRYCA_detail" style="order: 28371;"></div><div class="station very_good" id="CCBDA" style="order: 11281;">České Budějovice<span class="distance" id="CCBDA_distance">112.81 km, Jihočeský</span><div class="invisible small_spinner very_good_spinner" id="CCBDA_spinner"></div></div><div class="detail invisible" id="CCBDA_detail" style="order: 11281;"></div><div class="station very_good" id="CPRAA" style="order: 11331;">Prachatice<span class="distance" id="CPRAA_distance">113.31 km, Jihočeský</span><div class="invisible small_spinner very_good_spinner" id="CPRAA_spinner"></div></div><div class="detail invisible" id="CPRAA_detail" style="order: 11331;"></div><div class="station very_good" id="CHVOA" style="order: 14340;">Hojná Voda<span class="distance" id="CHVOA_distance">143.4 km, Jihočeský</span><div class="invisible small_spinner very_good_spinner" id="CHVOA_spinner"></div></div><div class="detail invisible" id="CHVOA_detail" style="order: 14340;"></div><div class="station undetermined" id="CKOCA" style="order: 7227;">Kocelovice<span class="distance" id="CKOCA_distance">72.27 km, Jihočeský</span><div class="invisible small_spinner undetermined_spinner" id="CKOCA_spinner"></div></div><div class="detail invisible" id="CKOCA_detail" style="order: 7227;"></div><div class="station very_good" id="CTABA" style="order: 6789;">Tábor<span class="distance" id="CTABA_distance">67.89 km, Jihočeský</span><div class="invisible small_spinner very_good_spinner" id="CTABA_spinner"></div></div><div class="detail invisible" id="CTABA_detail" style="order: 6789;"></div><div class="station undetermined" id="CCHUA" style="order: 11853;">Churáňov<span class="distance" id="CCHUA_distance">118.53 km, Jihočeský</span><div class="invisible small_spinner undetermined_spinner" id="CCHUA_spinner"></div></div><div class="detail invisible" id="CCHUA_detail" style="order: 11853;"></div><div class="station incomplete" id="BBMLA" style="order: 18138;">Brno-Lány<span class="distance" id="BBMLA_distance">181.38 km, Jihomoravský</span><div class="invisible small_spinner incomplete_spinner" id="BBMLA_spinner"></div></div><div class="detail invisible" id="BBMLA_detail" style="order: 18138;"></div><div class="station very_good" id="BMOCA" style="order: 19146;">Sivice<span class="distance" id="BMOCA_distance">191.46 km, Jihomoravský</span><div class="invisible small_spinner very_good_spinner" id="BMOCA_spinner"></div></div><div class="detail invisible" id="BMOCA_detail" style="order: 19146;"></div><div class="station very_good" id="BZNOA" style="order: 17498;">Znojmo<span class="distance" id="BZNOA_distance">174.98 km, Jihomoravský</span><div class="invisible small_spinner very_good_spinner" id="BZNOA_spinner"></div></div><div class="detail invisible" id="BZNOA_detail" style="order: 17498;"></div><div class="station very_good" id="BHODA" style="order: 23381;">Hodonín<span class="distance" id="BHODA_distance">233.81 km, Jihomoravský</span><div class="invisible small_spinner very_good_spinner" id="BHODA_spinner"></div></div><div class="detail invisible" id="BHODA_detail" style="order: 23381;"></div><div class="station very_good" id="BBNIA" style="order: 18479;">Brno-Líšeň<span class="distance" id="BBNIA_distance">184.79 km, Jihomoravský</span><div class="invisible small_spinner very_good_spinner" id="BBNIA_spinner"></div></div><div class="detail invisible" id="BBNIA_detail" style="order: 18479;"></div><div class="station very_good" id="BMISA" style="order: 21416;">Mikulov-Sedlec<span class="distance" id="BMISA_distance">214.16 km, Jihomoravský</span><div class="invisible small_spinner very_good_spinner" id="BMISA_spinner"></div></div><div class="detail invisible" id="BMISA_detail" style="order: 21416;"></div><div class="station incomplete" id="BBMAA" style="order: 18057;">Brno-Arboretum<span class="distance" id="BBMAA_distance">180.57 km, Jihomoravský</span><div class="invisible small_spinner incomplete_spinner" id="BBMAA_spinner"></div></div><div class="detail invisible" id="BBMAA_detail" style="order: 18057;"></div><div class="station very_good" id="BBNAA" style="order: 18291;">Brno-Masná<span class="distance" id="BBNAA_distance">182.91 km, Jihomoravský</span><div class="invisible small_spinner very_good_spinner" id="BBNAA_spinner"></div></div><div class="detail invisible" id="BBNAA_detail" style="order: 18291;"></div><div class="station incomplete" id="BKUCA" style="order: 17313;">Kuchařovice<span class="distance" id="BKUCA_distance">173.13 km, Jihomoravský</span><div class="invisible small_spinner incomplete_spinner" id="BKUCA_spinner"></div></div><div class="detail invisible" id="BKUCA_detail" style="order: 17313;"></div><div class="station incomplete" id="BBMZA" style="order: 18225;">Brno-Zvonařka<span class="distance" id="BBMZA_distance">182.25 km, Jihomoravský</span><div class="invisible small_spinner incomplete_spinner" id="BBMZA_spinner"></div></div><div class="detail invisible" id="BBMZA_detail" style="order: 18225;"></div><div class="station very_good" id="BBDNA" style="order: 18147;">Brno - Dětská nemocnice<span class="distance" id="BBDNA_distance">181.47 km, Jihomoravský</span><div class="invisible small_spinner very_good_spinner" id="BBDNA_spinner"></div></div><div class="detail invisible" id="BBDNA_detail" style="order: 18147;"></div><div class="station very_good" id="BBNYA" style="order: 18950;">Brno-Tuřany<span class="distance" id="BBNYA_distance">189.5 km, Jihomoravský</span><div class="invisible small_spinner very_good_spinner" id="BBNYA_spinner"></div></div><div class="detail invisible" id="BBNYA_detail" style="order: 18950;"></div><div class="station very_good" id="BBNVA" style="order: 18030;">Brno-Úvoz (hot spot)<span class="distance" id="BBNVA_distance">180.3 km, Jihomoravský</span><div class="invisible small_spinner very_good_spinner" id="BBNVA_spinner"></div></div><div class="detail invisible" id="BBNVA_detail" style="order: 18030;"></div><div class="station incomplete" id="BBMVA" style="order: 17928;">Brno-Výstaviště<span class="distance" id="BBMVA_distance">179.28 km, Jihomoravský</span><div class="invisible small_spinner incomplete_spinner" id="BBMVA_spinner"></div></div><div class="detail invisible" id="BBMVA_detail" style="order: 17928;"></div><div class="station incomplete" id="BBMSA" style="order: 18282;">Brno-Svatoplukova<span class="distance" id="BBMSA_distance">182.82 km, Jihomoravský</span><div class="invisible small_spinner incomplete_spinner" id="BBMSA_spinner"></div></div><div class="detail invisible" id="BBMSA_detail" style="order: 18282;"></div><div class="station very_good" id="BMOKA" style="order: 18939;">Mokrá<span class="distance" id="BMOKA_distance">189.39 km, Jihomoravský</span><div class="invisible small_spinner very_good_spinner" id="BMOKA_spinner"></div></div><div class="detail invisible" id="BMOKA_detail" style="order: 18939;"></div><div class="station very_good" id="KCHMA" style="order: 14691;">Cheb<span class="distance" id="KCHMA_distance">146.91 km, Karlovarský</span><div class="invisible small_spinner very_good_spinner" id="KCHMA_spinner"></div></div><div class="detail invisible" id="KCHMA_detail" style="order: 14691;"></div><div class="station undetermined" id="KPRBA" style="order: 13489;">Přebuz<span class="distance" id="KPRBA_distance">134.89 km, Karlovarský</span><div class="invisible small_spinner undetermined_spinner" id="KPRBA_spinner"></div></div><div class="detail invisible" id="KPRBA_detail" style="order: 13489;"></div><div class="station satisfactory" id="KSOMA" style="order: 12599;">Sokolov<span class="distance" id="KSOMA_distance">125.99 km, Karlovarský</span><div class="invisible small_spinner satisfactory_spinner" id="KSOMA_spinner"></div></div><div class="detail invisible" id="KSOMA_detail" style="order: 12599;"></div><div class="station very_good" id="UCHMA" style="order: 8849;">Chomutov<span class="distance" id="UCHMA_distance">88.49 km, Ústecký</span><div class="invisible small_spinner very_good_spinner" id="UCHMA_spinner"></div></div><div class="detail invisible" id="UCHMA_detail" style="order: 8849;"></div><div class="station undetermined" id="USNZA" style="order: 9103;">Sněžník<span class="distance" id="USNZA_distance">91.03 km, Ústecký</span><div class="invisible small_spinner undetermined_spinner" id="USNZA_spinner"></div></div><div class="detail invisible" id="USNZA_detail" style="order: 9103;"></div><div class="station very_good" id="UDCMA" style="order: 8740;">Děčín<span class="distance" id="UDCMA_distance">87.4 km, Ústecký</span><div class="invisible small_spinner very_good_spinner" id="UDCMA_spinner"></div></div><div class="detail invisible" id="UDCMA_detail" style="order: 8740;"></div><div class="station very_good" id="URVHA" style="order: 9596;">Rudolice v Horách<span class="distance" id="URVHA_distance">95.96 km, Ústecký</span><div class="invisible small_spinner very_good_spinner" id="URVHA_spinner"></div></div><div class="detail invisible" id="URVHA_detail" style="order: 9596;"></div><div class="station very_good" id="UTPMA" style="order: 8241;">Teplice <span class="distance" id="UTPMA_distance">82.41 km, Ústecký</span><div class="invisible small_spinner very_good_spinner" id="UTPMA_spinner"></div></div><div class="detail invisible" id="UTPMA_detail" style="order: 8241;"></div><div class="station very_good" id="UTUSA" style="order: 8827;">Tušimice<span class="distance" id="UTUSA_distance">88.27 km, Ústecký</span><div class="invisible small_spinner very_good_spinner" id="UTUSA_spinner"></div></div><div class="detail invisible" id="UTUSA_detail" style="order: 8827;"></div><div class="station very_good" id="UULMA" style="order: 7834;">Ústí n.L.-město<span class="distance" id="UULMA_distance">78.34 km, Ústecký</span><div class="invisible small_spinner very_good_spinner" id="UULMA_spinner"></div></div><div class="detail invisible" id="UULMA_detail" style="order: 7834;"></div><div class="station very_good" id="UULKA" style="order: 8073;">Ústí n.L.-Kočkov<span class="distance" id="UULKA_distance">80.73 km, Ústecký</span><div class="invisible small_spinner very_good_spinner" id="UULKA_spinner"></div></div><div class="detail invisible" id="UULKA_detail" style="order: 8073;"></div><div class="station very_good" id="UKRUA" style="order: 8754;">Krupka<span class="distance" id="UKRUA_distance">87.54 km, Ústecký</span><div class="invisible small_spinner very_good_spinner" id="UKRUA_spinner"></div></div><div class="detail invisible" id="UKRUA_detail" style="order: 8754;"></div><div class="station very_good" id="UMOMA" style="order: 7910;">Most<span class="distance" id="UMOMA_distance">79.1 km, Ústecký</span><div class="invisible small_spinner very_good_spinner" id="UMOMA_spinner"></div></div><div class="detail invisible" id="UMOMA_detail" style="order: 7910;"></div><div class="station undetermined" id="UDOKA" style="order: 5414;">Doksany<span class="distance" id="UDOKA_distance">54.14 km, Ústecký</span><div class="invisible small_spinner undetermined_spinner" id="UDOKA_spinner"></div></div><div class="detail invisible" id="UDOKA_detail" style="order: 5414;"></div><div class="station very_good" id="ULTTA" style="order: 6394;">Litoměřice<span class="distance" id="ULTTA_distance">63.94 km, Ústecký</span><div class="invisible small_spinner very_good_spinner" id="ULTTA_spinner"></div></div><div class="detail invisible" id="ULTTA_detail" style="order: 6394;"></div><div class="station very_good" id="UMEDA" style="order: 10330;">Měděnec<span class="distance" id="UMEDA_distance">103.3 km, Ústecký</span><div class="invisible small_spinner very_good_spinner" id="UMEDA_spinner"></div></div><div class="detail invisible" id="UMEDA_detail" style="order: 10330;"></div><div class="station very_good" id="UULDA" style="order: 8176;">Ústí n.L.-Všebořická (hot spot)<span class="distance" id="UULDA_distance">81.76 km, Ústecký</span><div class="invisible small_spinner very_good_spinner" id="UULDA_spinner"></div></div><div class="detail invisible" id="UULDA_detail" style="order: 8176;"></div><div class="station very_good" id="ULOMA" style="order: 8403;">Lom<span class="distance" id="ULOMA_distance">84.03 km, Ústecký</span><div class="invisible small_spinner very_good_spinner" id="ULOMA_spinner"></div></div><div class="detail invisible" id="ULOMA_detail" style="order: 8403;"></div><div class="station very_good" id="MOLJA" style="order: 20717;">Olomouc-Hejčín<span class="distance" id="MOLJA_distance">207.17 km, Olomoucký</span><div class="invisible small_spinner very_good_spinner" id="MOLJA_spinner"></div></div><div class="detail invisible" id="MOLJA_detail" style="order: 20717;"></div><div class="station very_good" id="MBELA" style="order: 24734;">Bělotín<span class="distance" id="MBELA_distance">247.34 km, Olomoucký</span><div class="invisible small_spinner very_good_spinner" id="MBELA_spinner"></div></div><div class="detail invisible" id="MBELA_detail" style="order: 24734;"></div><div class="station very_good" id="MJESA" style="order: 19951;">Jeseník-lázně<span class="distance" id="MJESA_distance">199.51 km, Olomoucký</span><div class="invisible small_spinner very_good_spinner" id="MJESA_spinner"></div></div><div class="detail invisible" id="MJESA_detail" style="order: 19951;"></div><div class="station very_good" id="MOLSA" style="order: 20936;">Olomouc-Šmeralova<span class="distance" id="MOLSA_distance">209.36 km, Olomoucký</span><div class="invisible small_spinner very_good_spinner" id="MOLSA_spinner"></div></div><div class="detail invisible" id="MOLSA_detail" style="order: 20936;"></div><div class="station very_good" id="MPRRA" style="order: 22656;">Přerov<span class="distance" id="MPRRA_distance">226.56 km, Olomoucký</span><div class="invisible small_spinner very_good_spinner" id="MPRRA_spinner"></div></div><div class="detail invisible" id="MPRRA_detail" style="order: 22656;"></div><div class="station very_good" id="MPSTA" style="order: 20261;">Prostějov<span class="distance" id="MPSTA_distance">202.61 km, Olomoucký</span><div class="invisible small_spinner very_good_spinner" id="MPSTA_spinner"></div></div><div class="detail invisible" id="MPSTA_detail" style="order: 20261;"></div><div class="station undetermined" id="LSOUA" style="order: 10876;">Souš<span class="distance" id="LSOUA_distance">108.76 km, Liberecký</span><div class="invisible small_spinner undetermined_spinner" id="LSOUA_spinner"></div></div><div class="detail invisible" id="LSOUA_detail" style="order: 10876;"></div><div class="station undetermined" id="LFRTA" style="order: 11449;">Frýdlant<span class="distance" id="LFRTA_distance">114.49 km, Liberecký</span><div class="invisible small_spinner undetermined_spinner" id="LFRTA_spinner"></div></div><div class="detail invisible" id="LFRTA_detail" style="order: 11449;"></div><div class="station good" id="LCLMA" style="order: 7826;">Česká Lípa<span class="distance" id="LCLMA_distance">78.26 km, Liberecký</span><div class="invisible small_spinner good_spinner" id="LCLMA_spinner"></div></div><div class="detail invisible" id="LCLMA_detail" style="order: 7826;"></div><div class="station very_good" id="LLILA" style="order: 9602;">Liberec Rochlice<span class="distance" id="LLILA_distance">96.02 km, Liberecký</span><div class="invisible small_spinner very_good_spinner" id="LLILA_spinner"></div></div><div class="detail invisible" id="LLILA_detail" style="order: 9602;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="swiper-slide slide1">
+            <div id="header1" class="slide_header">
+                This is header 2
+            </div>
+            <div class="slide_body">
+                This is content 1
+            </div>
+        </div>
+    </div>
+</div>
+<div class="footer">
+    <div>
+        <div class="swiper-pagination"></div>
+    </div>
+    <div class="actions">
+        <div id="location" class="location action">
+            <i class="fa fa-crosshairs" aria-hidden="true"></i>
+            <span id="location_name">Modřany, Praha 12</span>
+        </div>
+        <div class="menu">
+            <div id="menu_items" class="menu_items invisible">
+                <div id="menu_filter_favorite" class="menu_item"><i id="menu_filter_favorite_check" class="fa fa-square-o" aria-hidden="true"></i> Oblíbené</div>
+                <div id="menu_manage_favorite" class="menu_item">Spravuj oblíbené</div>
+                <div id="menu_search" class="menu_item">Vyhledání stanice</div>
+            </div>
+            <div id="menu_expander" class="menu_expander action">
+                <i class="fa fa-ellipsis-v" aria-hidden="true"></i>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
