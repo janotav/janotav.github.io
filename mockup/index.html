@@ -9,11 +9,76 @@
 <!--<script src="https://www.gstatic.com/firebasejs/3.6.9/firebase-app.js"></script>-->
 <!--<script src="https://www.gstatic.com/firebasejs/3.6.9/firebase-messaging.js"></script>-->
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
-<!--<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.min.js"></script>-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Swiper/3.4.2/js/swiper.jquery.min.js"></script>
 <script type="text/javascript">
-    $(document).ready(function() {
+    window.onload = function () {
+        var options = {
+            legend: {
+                display: false
+            },
+            scales: {
+                xAxes: [{
+                    ticks: {
+                        beginAtZero:true,
+                        stepSize: 1,
+                        suggestedMax: 11
+                    }
+                }]
+            }
+        };
+        new Chart($("#uv_prediction"), {
+            type: "horizontalBar",
+            data: {
+                labels: ["dnes", "zítra", "20.3.", "21.3.", "22.3.", "23.3."],
+                datasets: [{
+                    data: [2.3, 2.5, 2.6, 2.4, 2.1, 2.2],
+                    borderColor: ["#FFFFFF"],
+                    borderWidth: [4],
+                    backgroundColor: ["#9BD3AE", "#FFF200", "#FFF200", "#9BD3AE", "#9BD3AE", "#9BD3AE"]
+                }]
+            },
+            options: options
+        });
+        var options_online = {
+            legend: {
+                labels: {
+                    fontSize: 36
+                }
+            },
+            scales: {
+                yAxes: [{
+                    ticks: {
+                        beginAtZero:true,
+                        stepSize: 1,
+                        suggestedMax: 11
+                    }
+                }]
+            }
+        };
+        new Chart($("#uv_online"), {
+            type: "line",
+            data: {
+                labels: ["18.3.", "19.3.", "20.3.", "21.3.", "22.3.", "23.3."],
+                datasets: [{
+                    label: "Hradec Králové",
+                    data: [2.3, 2.5, 2.6, 2.4, 2.1, 2.2],
+                    borderColor: "#FF0000"
+                },{
+                    label: "Košetice",
+                    data: [2.1, 1.5, 1.6, 2.1, 2.0, 1.2],
+                    borderColor: "#00FF00"
+                }, {
+                    label: "Kuchařovice",
+                    data: [1.2, 2.2, 2.1, 2.0, 1.1, 2.1],
+                    borderColor: "#0000FF"
+                }]
+            },
+            options: options_online
+        });
+    };
 
+    $(document).ready(function() {
         // stations loaded before alarm
         setTimeout(function() {
             $("#stations_running").remove();
@@ -106,7 +171,7 @@
 
         var options = {
             direction: 'horizontal',
-            effect: 'cube',
+            effect: 'flip',
 
             pagination: '.swiper-pagination',
             paginationClickable: true,
@@ -141,6 +206,7 @@
 
     .slide_header {
         padding-bottom: 10px;
+        background: black;
     }
 
     .invisible {
@@ -297,6 +363,10 @@
         padding-top: 10px;
     }
 
+    .padb {
+        padding-bottom: 10px;
+    }
+
     .padr {
         padding-right: 10px;
     }
@@ -311,6 +381,11 @@
 
     .material-icons.md-34 {
         font-size: 34px;
+    }
+
+    .chart_title {
+        border-bottom: solid 1px;
+        margin-top: 10px;
     }
 
 </style>
@@ -363,10 +438,36 @@
         </div>
         <div class="swiper-slide slide1">
             <div id="header1" class="slide_header">
-                This is header 2
+                <div id="alarm_icon1" class="alarm">
+                    <span id="alarm_level_number1" class="alarm_toggle satisfactory">5</span>
+                </div>
+                <div id="alarm_location_outer1" class="alarm_location">
+                    <div><span id="alarm_location1">Modřany, Praha 12</span> <span id="alarm_value1" class="good">Nízký-2</span></div>
+                    <div>upozornění <span id="alarm_level1" class="satisfactory">Střední-5</span> UV-Index</div>
+                </div>
             </div>
             <div class="slide_body">
-                This is content 1
+                <div class="chart_title">Předpověď UV-Indexu: Modřany, Praha 12</div>
+                <canvas id="uv_prediction"></canvas>
+                <div class="padl">
+                    Upozornění:
+                    <div class="padt padb" style="display: flex; justify-content: space-between;">
+                        <div class="good alarm_toggle">1</div>
+                        <div class="good alarm_toggle">2</div>
+                        <div class="satisfactory alarm_toggle">3</div>
+                        <div class="satisfactory alarm_toggle">4</div>
+                        <div class="satisfactory alarm_toggle">5</div>
+                        <div class="acceptable alarm_toggle">6</div>
+                        <div class="acceptable alarm_toggle">7</div>
+                        <div class="bad alarm_toggle">8</div>
+                        <div class="bad alarm_toggle">9</div>
+                        <div class="bad">10</div>
+                        <div class="very_bad">11</div>
+                    </div>
+                </div>
+
+                <div class="chart_title">On-line měření UV-Indexu<i id="time_spin1" class="fa fa-refresh fa-fw"></i></div>
+                <canvas id="uv_online"></canvas>
             </div>
         </div>
     </div>
