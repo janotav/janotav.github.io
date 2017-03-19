@@ -12,6 +12,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Swiper/3.4.2/js/swiper.jquery.min.js"></script>
 <script type="text/javascript">
+
+    // TODO: validate chart page & swiper compatibility
+
     window.onload = function () {
         var options = {
             legend: {
@@ -133,10 +136,12 @@
             $("#search").toggleClass("invisible");
         });
 
+        var suffix = "";
+
         var alarmFunc0 = [
             function () {
                 $("#alarm_location_outer").toggleClass("inactive");
-                $("#alarm_location").text("Praha 4-Libuš");
+                $("#alarm_location_inner").text("Praha 4-Libuš" + suffix);
                 $("#alarm_value").text("Velmi dobrá");
                 $("#alarm_value").toggleClass("very_good");
                 $("#alarm_level_number").text("3");
@@ -146,6 +151,7 @@
                 $("#alarm_direction").text(" a horší");
                 $("#alarm_icon").toggleClass("inactive");
 
+                $("#alarm_location_inner").css("max-width", $("#header0").innerWidth() - $("#alarm_icon").outerWidth() - $("#alarm_value").outerWidth() -  16 /* margin */ - 10 /* magic */);
             },
             function () {
                 $("#alarm_level_number").toggleClass("quality_improvement");
@@ -153,7 +159,7 @@
             },
             function () {
                 $("#alarm_location_outer").toggleClass("inactive");
-                $("#alarm_location").text("");
+                $("#alarm_location_inner").text("");
                 $("#alarm_value").text("");
                 $("#alarm_value").toggleClass("very_good");
                 $("#alarm_level_number").html("&nbsp;");
@@ -162,6 +168,7 @@
                 $("#alarm_level").toggleClass("satisfactory");
                 $("#alarm_direction").text("");
                 $("#alarm_icon").toggleClass("inactive");
+                suffix += " xxx";
                 alarmFunc.push.apply(alarmFunc, alarmFunc0);
             }
         ];
@@ -252,6 +259,18 @@
 
         display: flex;
         flex-direction: column;
+    }
+
+    .footer_padding {
+        padding-bottom: 215px;
+    }
+
+    .text_truncate {
+        display: inline-block;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        vertical-align: text-bottom;
     }
 
     .actions {
@@ -412,7 +431,7 @@
                     <span id="alarm_level_number" class="alarm_toggle">&nbsp;</span>
                 </div>
                 <div id="alarm_location_outer" class="invisible inactive"> <!-- class: alarm_location -->
-                    <div><span id="alarm_location"></span> <span id="alarm_value"></span></div>
+                    <div><div id="alarm_location_inner" class="text_truncate"></div> <span id="alarm_value"></span></div>
                     <div>upozornění <span id="alarm_level">nenastaveno</span> <span id="alarm_direction"></span></div>
                 </div>
                 <div id="stations_time" class="invisible">
@@ -429,7 +448,7 @@
                 <div id="stations_running" class="running">
                     <i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"></i>
                 </div>
-                <div id="stations" class="invisible">
+                <div id="stations" class="invisible footer_padding">
                     <div id="ALIBA" class="station very_good" style="order: 224;">Praha 4-Libuš<span class="distance" id="ALIBA_distance">2.25 km, Praha</span><div class="invisible small_spinner very_good_spinner" id="ALIBA_spinner"></div></div>
                     <div id="ALIBA_detail" class="detail invisible" style="order: 224;">
                         <div class="detail_panel very_good">Kvalita ovzduší: Velmi dobrá<i class="material-icons md-50">trending_flat</i></div>
