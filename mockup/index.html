@@ -19,10 +19,21 @@
             },
             scales: {
                 xAxes: [{
+                    scaleLabel: {
+                        display: true,
+                        labelString: "UV-Index",
+                        fontSize: 36
+                    },
                     ticks: {
+                        fontSize: 30,
                         beginAtZero:true,
                         stepSize: 1,
                         suggestedMax: 11
+                    }
+                }],
+                yAxes: [{
+                    ticks: {
+                        fontSize: 30
                     }
                 }]
             }
@@ -132,13 +143,13 @@
                 $("#alarm_level_number").toggleClass("satisfactory");
                 $("#alarm_level").text("Uspokojivá");
                 $("#alarm_level").toggleClass("satisfactory");
-                $("#alarm_direction").text(" nebo horší");
+                $("#alarm_direction").text(" a horší");
                 $("#alarm_icon").toggleClass("inactive");
 
             },
             function () {
                 $("#alarm_level_number").toggleClass("quality_improvement");
-                $("#alarm_direction").text(" nebo lepší");
+                $("#alarm_direction").text(" a lepší");
             },
             function () {
                 $("#alarm_location_outer").toggleClass("inactive");
