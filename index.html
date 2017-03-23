@@ -1,14 +1,16 @@
 <html>
 <head>
-<link rel="manifest" href="manifest.json">
-<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-<meta name="viewport" content="user-scalable=no"/>
+    <link rel="manifest" href="manifest.json">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Swiper/3.4.2/css/swiper.min.css">
+    <meta name="viewport" content="user-scalable=no"/>
 </head>
 <script src="https://use.fontawesome.com/dd6ad41192.js"></script>
 <script src="https://www.gstatic.com/firebasejs/3.6.9/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/3.6.9/firebase-messaging.js"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Swiper/3.4.2/js/swiper.jquery.min.js"></script>
 <script src="script.js"></script>
 <script type="text/javascript">
     window.onload = function() {
@@ -46,58 +48,13 @@
         border-radius: 50%;
     }
 
-    .very_bad_spinner {
-        border: 10px solid #671F20;
-        border-top: 10px solid #FFFFFF;
-    }
-
-    .bad_spinner {
-        border: 10px solid #ED1C24;
-        border-top: 10px solid #FFFFFF;
-    }
-
-    .acceptable_spinner {
-        border: 10px solid #FAA61A;
-        border-top: 10px solid #000000;
-    }
-
-    .satisfactory_spinner {
-        border: 10px solid #FFF200;
-        border-top: 10px solid #000000;
-    }
-
-    .good_spinner {
-        border: 10px solid #9BD3AE;
-        border-top: 10px solid #000000;
-    }
-
-    .incomplete_spinner {
-        border: 10px solid #FFFFFF;
-        border-top: 10px solid #000000;
-    }
-
-    .undetermined_spinner {
-        border: 10px solid #CFCFCF;
-        border-top: 10px solid #000000;
-    }
-
-    .small_spinner {
-        border-radius: 50%;
-        width: 12px;
-        height: 12px;
-        animation: spin 1s linear infinite;
+    .station_spinner {
         position: absolute;
         right: 20px;
         top: 5px;
     }
 
-    .very_good_spinner {
-        border: 10px solid #C7EAFB;
-        border-top: 10px solid #000000;
-    }
-
     .station {
-        font-size: 30px;
         text-align:center;
         padding: 8px;
         position: relative;
@@ -109,7 +66,7 @@
 
     .measurement {
         padding: 5px;
-        font-size: 20px;
+        font-size: 40%;
     }
 
     body {
@@ -150,55 +107,24 @@
         opacity: 0.75;
     }
 
-    .header_inner {
-        height: 235px;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .header_outer {
-        display: flex;
-        flex-direction: column;
-
-        position: fixed;
-        width: 100%;
-        top: 0;
-        left: 0;
-        z-index: 2;
-        background-color: #000000;
-    }
-
     .alarm_outer {
-        display: flex;
-        flex-direction: row;
-        padding-left: 10px;
+        display: inline-block;
     }
 
     .alarm_location {
-        display: flex;
+        display: inline-flex;
         flex-direction: column;
-        justify-content: center;
+        vertical-align: middle;
     }
 
-    img.alarm {
+    .alarm_icon {
+        background-image: url('img/alarm.png');
         width: 150px;
         height: 150px;
-    }
-
-    div.alarm {
-        position: absolute;
-        top: 0;
-        left: 10px;
-        width: 150px;
-        height: 150px;
-        text-align: center;
-        display: flex;
+        display: inline-flex;
         flex-direction: column;
-        justify-content: center;
-    }
-
-    div.alarm_inner {
-        margin: 30%;
+        justify-content: space-around;
+        align-items: center;
     }
 
     .detail_panel {
@@ -220,98 +146,33 @@
     .time {
         display: inline-block;
         border-bottom: 1px solid #FFFFFF;
-        margin: 10px;
-        padding: 3px;
     }
 
-    i.history_panel {
-        padding-right: 10px;
-    }
-
-    div.stations {
+    .stations {
         display: flex;
         flex-direction: column;
     }
 
-    .nodata {
-        padding: 3px;
-    }
-
-    .loader {
-        width: 100%;
-        height: 300px;
-        padding-top: 50px;
-    }
-
-    .loader_spinner {
-        border: 10px solid black;
-        border-top: 10px solid lightgray;
-        border-radius: 50%;
-        width: 50px;
-        height: 50px;
-        margin: 0 auto;
-        animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-
-    div.menu_expander {
-        padding: 10px 60px;
-        font-size: 75px;
-        background: black;
-        border-radius: 10px;
+    .menu_expander {
         align-self: flex-end;
     }
 
-    div.menu {
+    .menu {
         position: fixed;
-        bottom: 10px;
+        bottom: 0;
         right: 15px;
         display: flex;
         flex-direction: column;
     }
 
-    div.menu_items {
-        padding-bottom: 2px;
-    }
-
-    div.menu_item {
+    .menu_item {
         background: black;
         padding: 20px 30px;
         border: 1px solid darkgray;
     }
 
-    div.search {
-        padding-left: 10px;
-        padding-bottom: 10px;
-    }
-
     input.search {
         width: 50%;
-    }
-
-    i.search {
-        background: white;
-        color: black;
-        position: relative;
-        left: -50px;
-    }
-
-    /* make sure we can scroll content above menu expander */
-    .footer_place_holder {
-        height: 100px;
-    }
-
-    div.location {
-        position: fixed;
-        bottom: 10px;
-        left: 20px;
-        padding: 20px 20px;
-        background: black;
-        border-radius: 10px;
     }
 
     div.location_picker {
@@ -438,54 +299,168 @@
         padding-bottom: 10px;
     }
 
+    .actions {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .action {
+        padding: 30px;
+    }
+
+    .swiper-pagination {
+        position: inherit;
+    }
+
+    .slide_body {
+        overflow: auto;
+        background: black;
+    }
+
+    .slide_header {
+        padding-bottom: 10px;
+        background: black;
+    }
+
+    .page {
+        opacity: 0.5;
+        padding: 10px;
+        margin: 5px;
+        border: solid;
+        border-radius: 20%;
+    }
+
+    .page-active {
+        opacity: 1;
+    }
+
+    .footer {
+        position: fixed;
+        z-index: 2;
+        bottom: 0;
+        left: 0;
+        height: 200px;
+        width: 100%;
+        background: black;
+        padding-top: 15px;
+
+        display: flex;
+        flex-direction: column;
+    }
+
+    .running {
+        width: 100%;
+        height: 100%;
+        display: inline-flex;
+        flex-direction: column;
+        justify-content: space-around;
+        align-items: center;
+    }
+
+    .text_truncate {
+        display: inline-block;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        vertical-align: text-bottom;
+    }
+
+    .chart_title {
+        border-bottom: solid 1px;
+        margin-top: 10px;
+    }
+
+    .padt {
+        padding-top: 10px;
+    }
+
+    .padb {
+        padding-bottom: 10px;
+    }
+
+    .padr {
+        padding-right: 10px;
+    }
+
+    .padl {
+        padding-left: 10px;
+    }
+
 </style>
 <body>
+<div id="components" class="invisible">
+    <div class="alarm_component">
+        <div id="alarm_running" class="invisible">
+            <div class="running" style="height: 150px;">
+                <i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"></i>
+            </div>
+        </div>
+        <div class="alarm_outer invisible">
+            <div class="alarm alarm_icon">
+                <span class="alarm_level_number alarm_toggle">&nbsp;</span>
+            </div>
+        </div>
+        <div class="alarm_outer invisible">
+            <div class="alarm alarm_location">
+                <div><div class="alarm_location_name text_truncate"></div> <span class="alarm_value"></span></div>
+                <div>upozornění <span class="alarm_level">nenastaveno</span> <span class="alarm_direction"></span></div>
+            </div>
+        </div>
+    </div>
+</div>
 <div id="main_page">
-    <div id="header_outer" class="header_outer">
-        <div id="header_inner" class="header_inner">
-            <div id="alarm_loader" class="loader invisible">
-                <div class="loader_spinner"></div>
-            </div>
-            <div id="alarm_outer" class="invisible">
-                <div id="alarm_toggle">
-                    <img src="img/alarm.png" class="alarm"/>
-                    <div class="alarm"><div id="alarm_level_number" class="alarm_inner"></div></div>
+    <div class="swiper-container">
+        <div class="swiper-wrapper">
+            <div id="slide0" class="swiper-slide">
+                <div id="header0" class="slide_header">
+                    <div id="alarm0"></div>
+                    <div class="stations_outer invisible">
+                        <div class="time">
+                            Čas měření <span id="time">18. 3. 2017 12:00:00</span>
+                        </div>
+                        <i id="time_spin" class="fa fa-refresh fa-fw"></i>
+                    </div>
+                    <div id="search" class="padt invisible">
+                        <input id="search_input" type="text" placeholder="Jméno stanice" class="search"/><i id="search_close" class="fa fa-times search padl" aria-hidden="true"></i>
+                    </div>
                 </div>
-                <div class="alarm_location">
-                    <div><span id="alarm_location"></span> <span id="alarm_value"></span></div>
-                    <div>upozornění <span id="alarm_level"></span> <span id="alarm_direction"></span></div>
+                <div class="slide_body">
+                    <div id="stations_running" class="running">
+                        <i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"></i>
+                    </div>
+                    <div class="stations_outer invisible">
+                        <div id="stations" class="stations"></div>
+                    </div>
                 </div>
             </div>
-            <div id="time_outer" class="invisible">
-                <div class="time">
-                    Čas měření <span id="date"></span>
+            <div class="swiper-slide slide1">
+                <div id="header1" class="slide_header">
+                    <div id="alarm1"></div>
                 </div>
-                <i id="time_spin" class="fa fa-refresh fa-fw"></i>
+                <div class="slide_body">
+                    <div class="chart_title">Předpověď UV-Indexu: Modřany, Praha 12</div>
+                    <canvas id="uv_prediction"></canvas>
+                    <div class="padl">
+                        Upozornění:
+                        <div class="padt padb" style="display: flex; justify-content: space-between;">
+                            <div class="good alarm_toggle">1</div>
+                            <div class="good alarm_toggle">2</div>
+                            <div class="satisfactory alarm_toggle">3</div>
+                            <div class="satisfactory alarm_toggle">4</div>
+                            <div class="satisfactory alarm_toggle">5</div>
+                            <div class="acceptable alarm_toggle">6</div>
+                            <div class="acceptable alarm_toggle">7</div>
+                            <div class="bad alarm_toggle">8</div>
+                            <div class="bad alarm_toggle">9</div>
+                            <div class="bad">10</div>
+                            <div class="very_bad">11</div>
+                        </div>
+                    </div>
+
+                    <div class="chart_title">On-line měření UV-Indexu<i id="time_spin1" class="fa fa-refresh fa-fw"></i></div>
+                    <canvas id="uv_online"></canvas>
+                </div>
             </div>
-        </div>
-        <div id="search" class="search invisible">
-            <input id="search_input" type="text" placeholder="Jméno stanice" class="search"/><i id="search_close" class="fa fa-times search" aria-hidden="true"></i>
-        </div>
-    </div>
-    <div id="header_place_holder" class="header_placer_holder"></div>
-    <div id="loader" class="loader">
-        <div class="loader_spinner"></div>
-    </div>
-    <div id="stations" class="stations">
-    </div>
-    <div class="footer_place_holder"></div>
-    <div id="location" class="location invisible">
-        <i class="fa fa-crosshairs" aria-hidden="true"></i>
-        <span id="location_name"></span>
-    </div>
-    <div class="menu">
-        <div id="menu_items" class="menu_items invisible">
-            <div id="menu_filter_favorite" class="menu_item"><i id="menu_filter_favorite_check" class="fa fa-square-o" aria-hidden="true"></i> Oblíbené</div>
-            <div id="menu_manage_favorite" class="menu_item">Spravuj oblíbené</div>
-            <div id="menu_search" class="menu_item">Vyhledání stanice</div>
-        </div>
-        <div id="menu_expander" class="menu_expander invisible">
-            <i class="fa fa-ellipsis-v" aria-hidden="true"></i>
         </div>
     </div>
 </div>
@@ -555,6 +530,29 @@
     </div>
     <div id="history_place_holder"></div>
     <div id="history_charts"></div>
+</div>
+<div id="footer">
+    <div class="footer">
+        <div>
+            <div class="swiper-pagination"></div>
+        </div>
+        <div class="actions">
+            <div id="location" class="location action">
+                <i class="fa fa-crosshairs" aria-hidden="true"></i>
+                <span id="location_name">Modřany, Praha 12</span>
+            </div>
+            <div class="menu">
+                <div id="menu_items" class="menu_items invisible">
+                    <div id="menu_filter_favorite" class="menu_item"><i id="menu_filter_favorite_check" class="fa fa-square-o" aria-hidden="true"></i> Oblíbené</div>
+                    <div id="menu_manage_favorite" class="menu_item">Spravuj oblíbené</div>
+                    <div id="menu_search" class="menu_item">Vyhledání stanice</div>
+                </div>
+                <div id="menu_expander" class="menu_expander action">
+                    <i class="fa fa-ellipsis-v" aria-hidden="true"></i>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 </body>
 </html>

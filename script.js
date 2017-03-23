@@ -126,8 +126,68 @@ function displayLocation() {
     }
 }
 
+function initializeAlarm(targetElem, component, onClickFunc) {
+    targetElem.append(component.clone());
+    targetElem.find(".alarm_icon").click(onClickFunc);
+}
+
+function initializeComponents() {
+    var components = $("#components");
+
+    var alarmComponent = components.find(".alarm_component");
+    initializeAlarm($("#alarm0"), alarmComponent, function () {
+        if (typeof myAlarm !== 'undefined' && typeof myAlarm.code !== 'undefined') {
+            updateAlarm({
+                token: myToken,
+                remove: true
+            });
+        }
+        return false;
+    });
+    initializeAlarm($("#alarm1"), alarmComponent, function () {});
+
+    components.remove();
+}
+
+function updateSlidesHeight() {
+    $(".slide_body").each(function (index, element) {
+        updateSlideHeight($(element));
+    });
+}
+
+function updateSlideHeight(slideBody) {
+    slideBody.css("height", window.innerHeight - $(".footer").outerHeight() - slideBody.closest(".swiper-slide").find(".slide_header").outerHeight());
+}
+
+
+function initializeSwiper() {
+    updateSlidesHeight();
+
+    var pager = [
+        '<i class="fa fa-leaf page" aria-hidden="true"></i>',
+        '<i class="fa fa-sun-o page" aria-hidden="true"></i>'
+    ];
+
+    var options = {
+        direction: 'horizontal',
+        effect: 'flip',
+
+        pagination: '.swiper-pagination',
+        paginationClickable: true,
+        paginationBulletRender: function (swiper, index, className) {
+            return pager[index];
+        },
+        bulletClass: 'page',
+        bulletActiveClass: 'page-active'
+    };
+    new Swiper('.swiper-container', options);
+}
+
 function initialize() {
     main_page = $("#main_page");
+
+    initializeComponents();
+    initializeSwiper();
 
     if ('indexedDB' in window) {
         var idb = window.indexedDB;
@@ -212,16 +272,6 @@ function initialize() {
             console.log("Pushing state to history");
             history.pushState("", document.title, window.location.pathname + window.location.search);
         });
-    });
-
-    $("#alarm_toggle").click(function () {
-        if (typeof myAlarm !== 'undefined' && typeof myAlarm.code !== 'undefined') {
-            updateAlarm({
-                token: myToken,
-                remove: true
-            });
-        }
-        return false;
     });
 
     $("#time_spin").click(reload);
@@ -592,6 +642,7 @@ function disablePendingExit() {
 
 function toggleLocationPage() {
     disablePendingExit();
+    $("#footer").toggleClass("invisible");
     $("#location_page").toggleClass("invisible");
     main_page.toggleClass("invisible");
     if (main_page.hasClass("invisible")) {
@@ -607,6 +658,7 @@ function filterChangeHandler() {
 
 function showFavoritesPage() {
     disablePendingExit();
+    $("#footer").addClass("invisible");
     main_page.addClass("invisible");
     $("#favorites_page").removeClass("invisible");
     backNavigation = hideFavoritesPage;
@@ -614,6 +666,7 @@ function showFavoritesPage() {
 }
 
 function hideFavoritesPage() {
+    $("#footer").removeClass("invisible");
     $("#favorites_page").addClass("invisible");
     main_page.removeClass("invisible");
     updateFavoriteMenuItem(true);
@@ -629,6 +682,7 @@ function orientationErr(err) {
 
 function showHistoryPage() {
     disablePendingExit();
+    $("#footer").addClass("invisible");
     historySaveScrollTop = $(window).scrollTop();
     main_page.addClass("invisible");
     $("#history_page").removeClass("invisible");
@@ -638,6 +692,7 @@ function showHistoryPage() {
 }
 
 function hideHistoryPage() {
+    $("#footer").removeClass("invisible");
     $("#history_page").addClass("invisible");
     main_page.removeClass("invisible");
     screen.orientation.lock("portrait").catch(orientationErr);
@@ -830,10 +885,10 @@ function addStation(stations, stationCode, station, regionName) {
     var distance = $("<span class='distance'/>");
     distance.attr('id', stationCode + "_distance");
     stationDiv.append(distance);
-    var stationSpinnerDiv = $("<div class='invisible small_spinner'/>");
-    stationSpinnerDiv.attr('id', stationCode + "_spinner");
-    stationSpinnerDiv.addClass(station.qualityClass + "_spinner");
-    stationDiv.append(stationSpinnerDiv);
+    var stationSpinner = $("<i class='fa fa-refresh fa-spin fa-fw invisible station_spinner'/>");
+    stationSpinner.attr('id', stationCode + "_spinner");
+    // stationSpinner.addClass(station.qualityClass + "_spinner");
+    stationDiv.append(stationSpinner);
     stations.append(stationDiv);
 
     var detailDiv = $("<div class='detail invisible'/>");
@@ -1077,7 +1132,10 @@ function setMeta(meta) {
     $("#time_outer").removeClass("invisible");
     $("#menu_expander").removeClass("invisible");
     $("#location").removeClass("invisible");
-    $("#loader").remove();
+    $("#stations_running").remove();
+    var slide = $("#slide0");
+    slide.find(".stations_outer").removeClass("invisible");
+    updateSlideHeight((slide.find(".slide_body")));
 
     var stations = $("#stations");
     stations.empty();
@@ -1128,7 +1186,7 @@ function setMeta(meta) {
     });
     updateFavoriteIcons();
 
-    displayAlarm();
+    displayEmissionAlarm();
 }
 
 function updateFavoriteMenuItem(store) {
@@ -1211,94 +1269,93 @@ function setFavoriteIcon(code) {
 }
 
 function setToken(token) {
+
+    function hideAlarmProgress() {
+        $("#alarm_running").remove();
+        $("#alarm_icon").toggleClass("alarm_icon invisible");
+        $("#alarm_location_outer").toggleClass("alarm_location invisible");
+    }
+
     if (token !== myToken) {
         myToken = token;
         if (token !== false) {
-            loadAlarm();
+            loadAlarm().then(hideAlarmProgress);
             addAlarmPanelToDetails();
         } else {
             setAlarm(false);
+            hideAlarmProgress();
         }
     }
 }
 
 function setAlarm(alarm) {
     myAlarm = alarm;
-    displayAlarm();
+    displayEmissionAlarm();
 }
 
-function displayAlarm() {
-    if (typeof myStations === 'undefined') {
+function displayAlarm(alarm, ready, active, stationName, valueText, valueClass, levelText, levelNumber, levelClass, levelImprovement, direction) {
+    if (!ready) {
         return;
     }
 
-    var alarmDirection = $("#alarm_direction");
-    var alarmOuter = $("#alarm_outer");
-    var alarmLoader = $("#alarm_loader");
+    var alarmOuterElems = alarm.find(".alarm_outer");
+    var alarmLevel = alarm.find(".alarm_level");
+    var alarmDirection = alarm.find(".alarm_direction");
+    var alarmValue = alarm.find(".alarm_value");
+    var alarmLocation = alarm.find(".alarm_location_name");
+    var alarmLevelNumber = alarm.find(".alarm_level_number");
 
-    if (myAlarm === false) {
-        alarmOuter.addClass("alarm_outer inactive");
-        alarmOuter.removeClass("invisible");
-        alarmLoader.remove();
-        alarmDirection.text("nepodporováno");
-        return;
-    }
+    // make the alarm visible
+    alarmOuterElems.removeClass("invisible");
 
-    if (typeof myAlarm === 'undefined') {
-        alarmLoader.removeClass("invisible");
-        return;
-    }
-
-    var alarmLevel = $("#alarm_level");
-    var alarmValue = $("#alarm_value");
-    var alarmLocation = $("#alarm_location");
-    var alarmLevelNumber = $("#alarm_level_number");
-
-    if (typeof myAlarm.code === 'undefined') {
-        alarmLocation.text("");
-        alarmValue.text("");
-        alarmLevel.text("");
-        alarmLevelNumber.text("");
-        alarmOuter.addClass("alarm_outer inactive");
-        alarmOuter.removeClass("invisible");
-        alarmLoader.remove();
-        alarmDirection.text("nenastaveno");
-        return;
-    }
-
-    var alarmClass = emission_idx[Math.abs(myAlarm.level) + 1];
-    alarmLevel.text(qualityLabel[alarmClass]);
-    alarmLevel.removeClass("very_good good satisfactory acceptable bad very_bad").addClass(alarmClass);
-    alarmLevelNumber.text(Math.abs(myAlarm.level));
-    alarmLevelNumber.removeClass("very_good good satisfactory acceptable bad very_bad").addClass(alarmClass);
-    if (myAlarm.level == -1 || myAlarm.level == 6) {
-        alarmDirection.text("");
-    } else if (myAlarm.level > 0) {
-        alarmDirection.text(" a horší");
+    if (active) {
+        alarmOuterElems.removeClass("inactive");
     } else {
-        alarmDirection.text(" a lepší");
+        alarmOuterElems.addClass("inactive");
     }
-    if (myAlarm.level < 0) {
+
+    alarmLocation.text(stationName);
+    alarmValue.text(valueText).removeClass("undetermined incomplete very_good good satisfactory acceptable bad very_bad").addClass(valueClass);
+    alarmLevel.text(levelText).removeClass("very_good good satisfactory acceptable bad very_bad").addClass(levelClass);
+    alarmLevelNumber.text(levelNumber).removeClass("very_good good satisfactory acceptable bad very_bad quality_improvement").addClass(levelClass);
+    if (levelImprovement) {
         alarmLevelNumber.addClass("quality_improvement");
-    } else {
-        alarmLevelNumber.removeClass("quality_improvement");
     }
-    alarmOuter.addClass("alarm_outer");
-    alarmOuter.removeClass("invisible inactive");
-    alarmLoader.remove();
+    alarmDirection.text(direction);
+}
+
+function displayEmissionAlarm() {
+    var alarm = $("#alarm0");
+
+    if (typeof myStations === "undefined" || typeof myAlarm === 'undefined') {
+        displayAlarm(alarm, false, false, "", "", "", "", "", "", false, "");
+        return;
+    }
+
+    if (myAlarm === false || typeof myAlarm.code === "undefined") {
+        displayAlarm(alarm, true, false, "", "", "", "nenastaveno", "", "", false, "");
+        return;
+    }
 
     var station = myStations[myAlarm.code];
-    if (typeof station === "undefined") {
-        console.error("Alarm references unknown station: ", myAlarm.code);
-        alarmLocation.text("neznámá stanice");
-        alarmValue.text("");
-        return;
+    var stationName = typeof myStations[myAlarm.code] === "undefined"? "neznámá stanice": myStations[myAlarm.code].name;
+
+    var valueClass = emission_idx[station.idx + 1];
+    var valueText = qualityLabel[valueClass];
+    var levelClass = emission_idx[Math.abs(myAlarm.level) + 1];
+    var levelText = qualityLabel[levelClass];
+    var levelImprovement = (myAlarm.level < 0);
+
+    var direction;
+    if (myAlarm.level == -1 || myAlarm.level == 6) {
+        direction = "";
+    } else if (myAlarm.level > 0) {
+        direction = " a horší";
+    } else {
+        direction = " a lepší";
     }
 
-    var qualityClass = emission_idx[station.idx + 1];
-    alarmLocation.text(station.name);
-    alarmValue.text(qualityLabel[qualityClass]);
-    alarmValue.removeClass("undetermined incomplete very_good good satisfactory acceptable bad very_bad").addClass(qualityClass);
+    displayAlarm(alarm, true, true, stationName, valueText, valueClass, levelText, Math.abs(myAlarm.level), levelClass, levelImprovement, direction);
 }
 
 const messaging = firebase.messaging();
@@ -1387,21 +1444,27 @@ function updateAlarm(alarm) {
 }
 
 function loadAlarm() {
-    console.log('Retrieving alarm from the server');
-    $.ajax({
-        url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/alarm',
-        method: 'POST',
-        data: JSON.stringify({
-            token: myToken,
-            remove: false
-        }),
-        contentType: 'application/json',
-        headers: {
-            'x-api-key': 'api_key_public_access'
-        }
-    }).done(function (item) {
-        console.log('Current server alarm: ', item);
-        setAlarm(item);
+    return new Promise(function (resolve, reject) {
+        setAlarm({});
+        resolve({});
+        return;
+        console.log('Retrieving alarm from the server');
+        $.ajax({
+            url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/alarm',
+            method: 'POST',
+            data: JSON.stringify({
+                token: myToken,
+                remove: false
+            }),
+            contentType: 'application/json',
+            headers: {
+                'x-api-key': 'api_key_public_access'
+            }
+        }).done(function (item) {
+            console.log('Current server alarm: ', item);
+            setAlarm(item);
+            resolve(item);
+        });
     });
 }
 
@@ -1797,6 +1860,129 @@ function loadHistory(station, from, to, precisionFunc, type, multipleDays) {
 function loadMeta() {
     console.log('Retrieving meta data from the server');
     return new Promise(function (resolve, reject) {
+        var meta = {"date":"2017-03-22 08:00:00.0 UTC","regions":{"Středočeský":{"SPBRA":{"loc":["49.676315","13.991222"],"name":"Příbram-Březové Hory","idx":1,"regionName":"Středočeský","qualityClass":"very_good","distance":53.07},"SBERA":{"loc":["49.957928","14.058300"],"name":"Beroun","idx":2,"regionName":"Středočeský","qualityClass":"good","distance":30.2},"SKLSA":{"loc":["50.167412","14.106048"],"name":"Kladno-Švermov","idx":3,"regionName":"Středočeský","qualityClass":"satisfactory","distance":28.41},"SONRA":{"loc":["49.913513","14.782625"],"name":"Ondřejov","idx":-1,"regionName":"Středočeský","qualityClass":"undetermined","distance":27.59},"SRORA":{"loc":["50.301983","15.178303"],"name":"Rožďalovice-Ruská","idx":1,"regionName":"Středočeský","qualityClass":"very_good","distance":58.64},"STCSA":{"loc":["49.918503","14.094489"],"name":"Tobolka-Čertovy schody","idx":-1,"regionName":"Středočeský","qualityClass":"undetermined","distance":29.63},"SKLMA":{"loc":["50.143860","14.101784"],"name":"Kladno-střed města","idx":1,"regionName":"Středočeský","qualityClass":"very_good","distance":27.56},"SMBOA":{"loc":["50.428646","14.913859"],"name":"Mladá Boleslav","idx":1,"regionName":"Středočeský","qualityClass":"very_good","distance":53.42}},"Vysočina":{"JKMYA":{"loc":["49.159153","15.439048"],"name":"Kostelní Myslová","idx":-1,"regionName":"Vysočina","qualityClass":"undetermined","distance":121.45},"JJIZA":{"loc":["49.393333","15.592500"],"name":"Jihlava-Znojemská","idx":3,"regionName":"Vysočina","qualityClass":"satisfactory","distance":109.28},"JHBSA":{"loc":["49.605556","15.579167"],"name":"Havl.Brod-Smetan.nám.","idx":1,"regionName":"Vysočina","qualityClass":"very_good","distance":94.26},"JJIHA":{"loc":["49.401596","15.610246"],"name":"Jihlava","idx":2,"regionName":"Vysočina","qualityClass":"good","distance":109.63},"JZNZA":{"loc":["49.559723","15.943056"],"name":"Ždár nad Sázavou","idx":1,"regionName":"Vysočina","qualityClass":"very_good","distance":119.6},"JKOSA":{"loc":["49.573395","15.080278"],"name":"Košetice","idx":1,"regionName":"Vysočina","qualityClass":"very_good","distance":69.08},"JTREA":{"loc":["49.223438","15.865778"],"name":"Třebíč","idx":3,"regionName":"Vysočina","qualityClass":"satisfactory","distance":136.65}},"Praha":{"ALEGA":{"loc":["50.072388","14.430673"],"name":"Praha 2-Legerova (hot spot)","idx":3,"regionName":"Praha","qualityClass":"satisfactory","distance":3.4},"ASMIA":{"loc":["50.073135","14.398141"],"name":"Praha 5-Smíchov","idx":2,"regionName":"Praha","qualityClass":"good","distance":5.13},"ALIBA":{"loc":["50.007305","14.445933"],"name":"Praha 4-Libuš","idx":2,"regionName":"Praha","qualityClass":"good","distance":4.5},"ACHOA":{"loc":["50.030170","14.517450"],"name":"Praha 4-Chodov","idx":0,"regionName":"Praha","qualityClass":"incomplete","distance":4.68},"AVYNA":{"loc":["50.111080","14.503096"],"name":"Praha 9-Vysočany","idx":3,"regionName":"Praha","qualityClass":"satisfactory","distance":7.83},"ARIEA":{"loc":["50.081482","14.442692"],"name":"Praha 2-Riegrovy sady","idx":2,"regionName":"Praha","qualityClass":"good","distance":3.97},"ASTOA":{"loc":["50.046131","14.331413"],"name":"Praha 5-Stodůlky","idx":1,"regionName":"Praha","qualityClass":"very_good","distance":9},"AKOBA":{"loc":["50.122189","14.467578"],"name":"Praha 8-Kobylisy","idx":1,"regionName":"Praha","qualityClass":"very_good","distance":8.39},"APRUA":{"loc":["50.062298","14.537820"],"name":"Praha 10-Průmyslová","idx":2,"regionName":"Praha","qualityClass":"good","distance":5.98},"AVRSA":{"loc":["50.066429","14.446152"],"name":"Praha 10-Vršovice","idx":1,"regionName":"Praha","qualityClass":"very_good","distance":2.3},"AKALA":{"loc":["50.094238","14.442049"],"name":"Praha 8-Karlín","idx":1,"regionName":"Praha","qualityClass":"very_good","distance":5.36},"ASUCA":{"loc":["50.126530","14.384639"],"name":"Praha 6-Suchdol","idx":1,"regionName":"Praha","qualityClass":"very_good","distance":10.25},"ABREA":{"loc":["50.084385","14.380116"],"name":"Praha 6-Břevnov","idx":3,"regionName":"Praha","qualityClass":"satisfactory","distance":6.91},"AREPA":{"loc":["50.088066","14.429220"],"name":"Praha 1-n. Republiky","idx":3,"regionName":"Praha","qualityClass":"satisfactory","distance":4.98}},"Královéhradecký":{"HHKBA":{"loc":["50.195362","15.846376"],"name":"Hradec Králové-Brněnská","idx":1,"regionName":"Královéhradecký","qualityClass":"very_good","distance":100.39},"HPLOA":{"loc":["50.350277","16.322500"],"name":"Polom","idx":1,"regionName":"Královéhradecký","qualityClass":"very_good","distance":136.96},"HTRTA":{"loc":["50.565880","15.903927"],"name":"Trutnov - Tkalcovská","idx":1,"regionName":"Královéhradecký","qualityClass":"very_good","distance":117.81},"HKRYA":{"loc":["50.660439","15.850090"],"name":"Krkonoše-Rýchory","idx":-1,"regionName":"Královéhradecký","qualityClass":"undetermined","distance":120.06},"HHKOK":{"loc":["50.177631","15.838390"],"name":"Hradec Králové-observatoř","idx":-1,"regionName":"Královéhradecký","qualityClass":"undetermined","distance":99.54}},"Zlínský":{"ZZLNA":{"loc":["49.232906","17.667175"],"name":"Zlín","idx":1,"regionName":"Zlínský","qualityClass":"very_good","distance":248.2},"ZTNVA":{"loc":["49.259392","17.410561"],"name":"Těšnovice","idx":1,"regionName":"Zlínský","qualityClass":"very_good","distance":229.91},"ZVMZA":{"loc":["49.472057","17.966976"],"name":"Valašské Meziříčí","idx":1,"regionName":"Zlínský","qualityClass":"very_good","distance":260.05},"ZUHRA":{"loc":["49.067951","17.466848"],"name":"Uherské Hradiště","idx":2,"regionName":"Zlínský","qualityClass":"good","distance":242.82},"ZOTMA":{"loc":["49.208912","17.534742"],"name":"Otrokovice-město","idx":0,"regionName":"Zlínský","qualityClass":"incomplete","distance":240.42},"ZSNVA":{"loc":["49.047817","18.007828"],"name":"Štítná n.Vláří","idx":-1,"regionName":"Zlínský","qualityClass":"undetermined","distance":279.17}},"Pardubický":{"EPAUA":{"loc":["50.024036","15.763549"],"name":"Pardubice Dukla","idx":1,"regionName":"Pardubický","qualityClass":"very_good","distance":93.32},"ESVRA":{"loc":["49.735085","16.034197"],"name":"Svratouch","idx":-1,"regionName":"Pardubický","qualityClass":"undetermined","distance":118.16},"EPAOA":{"loc":["50.042198","15.739414"],"name":"Pardubice-Rosice","idx":-1,"regionName":"Pardubický","qualityClass":"undetermined","distance":91.54},"EMTPA":{"loc":["49.758995","16.666721"],"name":"Moravská Třebová - Piaristická.","idx":3,"regionName":"Pardubický","qualityClass":"satisfactory","distance":161.43}},"Plzeňský":{"PPLAA":{"loc":["49.732449","13.402281"],"name":"Plzeň-Slovany","idx":2,"regionName":"Plzeňský","qualityClass":"good","distance":83.29},"PPMOA":{"loc":["49.692787","13.352594"],"name":"Plzeň - mobil 20.03.2013 Plzeň - Litice","idx":1,"regionName":"Plzeňský","qualityClass":"very_good","distance":88.44},"PPLEA":{"loc":["49.747330","13.381039"],"name":"Plzeň-střed","idx":1,"regionName":"Plzeňský","qualityClass":"very_good","distance":83.99},"PPLSA":{"loc":["49.745991","13.320748"],"name":"Plzeň-Skvrňany","idx":0,"regionName":"Plzeňský","qualityClass":"incomplete","distance":88.03},"PPLBA":{"loc":["49.728394","13.375540"],"name":"Plzeň-Bory","idx":0,"regionName":"Plzeňský","qualityClass":"incomplete","distance":85.22},"PPRMA":{"loc":["49.669582","12.677884"],"name":"Přimda","idx":-1,"regionName":"Plzeňský","qualityClass":"undetermined","distance":134.29},"PKUJA":{"loc":["49.722000","13.618538"],"name":"Kamenný Újezd","idx":1,"regionName":"Plzeňský","qualityClass":"very_good","distance":70.13},"PPLVA":{"loc":["49.768616","13.423381"],"name":"Plzeň-Doubravka","idx":0,"regionName":"Plzeňský","qualityClass":"incomplete","distance":80.26},"PPLLA":{"loc":["49.770126","13.368221"],"name":"Plzeň-Lochotín","idx":1,"regionName":"Plzeňský","qualityClass":"very_good","distance":83.86}},"Moravskoslezský":{"TOPOA":{"loc":["49.825294","18.159275"],"name":"Ostrava-Poruba/ČHMÚ","idx":-1,"regionName":"Moravskoslezský","qualityClass":"undetermined","distance":266.06},"TKAOK":{"loc":["49.858891","18.557777"],"name":"Karviná-ZÚ","idx":2,"regionName":"Moravskoslezský","qualityClass":"good","distance":294.07},"TCTNA":{"loc":["49.748959","18.609726"],"name":"Český Těšín","idx":2,"regionName":"Moravskoslezský","qualityClass":"good","distance":299.21},"TOVKA":{"loc":["49.944988","17.909531"],"name":"Opava-Kateřinky","idx":1,"regionName":"Moravskoslezský","qualityClass":"very_good","distance":247},"TOROK":{"loc":["49.818539","18.340343"],"name":"Ostrava-Radvanice OZO","idx":1,"regionName":"Moravskoslezský","qualityClass":"very_good","distance":279.04},"TOREK":{"loc":["49.807056","18.339138"],"name":"Ostrava-Radvanice ZÚ","idx":0,"regionName":"Moravskoslezský","qualityClass":"incomplete","distance":279.11},"TCERA":{"loc":["49.777142","17.541946"],"name":"Červená hora","idx":-1,"regionName":"Moravskoslezský","qualityClass":"undetermined","distance":222.88},"TCTAA":{"loc":["49.745152","18.621593"],"name":"Český Těšín-autobusové nádraží","idx":2,"regionName":"Moravskoslezský","qualityClass":"good","distance":300.12},"TONVA":{"loc":["49.824116","18.234913"],"name":"Ostrava Nová Ves-areál OVak","idx":3,"regionName":"Moravskoslezský","qualityClass":"satisfactory","distance":271.46},"TKARA":{"loc":["49.863796","18.551453"],"name":"Karviná","idx":2,"regionName":"Moravskoslezský","qualityClass":"good","distance":293.56},"TOPRA":{"loc":["49.856258","18.269741"],"name":"Ostrava-Přívoz","idx":2,"regionName":"Moravskoslezský","qualityClass":"good","distance":273.55},"TOFFA":{"loc":["49.839188","18.263689"],"name":"Ostrava-Fifejdy","idx":1,"regionName":"Moravskoslezský","qualityClass":"very_good","distance":273.32},"TOCBA":{"loc":["49.839848","18.289976"],"name":"Ostrava-Českobratrská (hot spot)","idx":3,"regionName":"Moravskoslezský","qualityClass":"satisfactory","distance":275.19},"TTROA":{"loc":["49.668114","18.677799"],"name":"Třinec-Kosmos","idx":2,"regionName":"Moravskoslezský","qualityClass":"good","distance":305.42},"TOUZA":{"loc":["49.936539","17.905169"],"name":"Opava-univerzitní zahrada","idx":1,"regionName":"Moravskoslezský","qualityClass":"very_good","distance":246.75},"TOZRA":{"loc":["49.796040","18.247181"],"name":"Ostrava-Zábřeh","idx":1,"regionName":"Moravskoslezský","qualityClass":"very_good","distance":272.71},"TTRKA":{"loc":["49.672379","18.643038"],"name":"Třinec-Kanada","idx":2,"regionName":"Moravskoslezský","qualityClass":"good","distance":302.87},"TOMHK":{"loc":["49.824860","18.263655"],"name":"Ostrava-Mariánské Hory","idx":1,"regionName":"Moravskoslezský","qualityClass":"very_good","distance":273.5},"TBKRA":{"loc":["49.502609","18.538561"],"name":"Bílý Kříž","idx":-1,"regionName":"Moravskoslezský","qualityClass":"undetermined","distance":299.21},"TFMIA":{"loc":["49.671791","18.351070"],"name":"Frýdek-Místek","idx":2,"regionName":"Moravskoslezský","qualityClass":"good","distance":282.18},"TSTDA":{"loc":["49.720936","18.089306"],"name":"Studénka","idx":1,"regionName":"Moravskoslezský","qualityClass":"very_good","distance":262.7},"TVERA":{"loc":["49.924679","18.422873"],"name":"Věřňovice","idx":1,"regionName":"Moravskoslezský","qualityClass":"very_good","distance":283.8},"TOPDA":{"loc":["49.835506","18.165279"],"name":"Ostrava-Poruba, DD","idx":1,"regionName":"Moravskoslezský","qualityClass":"very_good","distance":266.35},"THARA":{"loc":["49.790977","18.406836"],"name":"Havířov","idx":3,"regionName":"Moravskoslezský","qualityClass":"satisfactory","distance":284.15},"TRYCA":{"loc":["49.871670","18.377254"],"name":"Rychvald","idx":1,"regionName":"Moravskoslezský","qualityClass":"very_good","distance":281.05}},"Jihočeský":{"CCBDA":{"loc":["48.984386","14.465684"],"name":"České Budějovice","idx":1,"regionName":"Jihočeský","qualityClass":"very_good","distance":118.17},"CPRAA":{"loc":["49.016087","14.000444"],"name":"Prachatice","idx":1,"regionName":"Jihočeský","qualityClass":"very_good","distance":119.29},"CHVOA":{"loc":["48.724197","14.723382"],"name":"Hojná Voda","idx":1,"regionName":"Jihočeský","qualityClass":"very_good","distance":148.35},"CKOCA":{"loc":["49.467243","13.838234"],"name":"Kocelovice","idx":-1,"regionName":"Jihočeský","qualityClass":"undetermined","distance":78.33},"CTABA":{"loc":["49.411232","14.676389"],"name":"Tábor","idx":1,"regionName":"Jihočeský","qualityClass":"very_good","distance":72.43},"CCHUA":{"loc":["49.068436","13.614801"],"name":"Churáňov","idx":-1,"regionName":"Jihočeský","qualityClass":"undetermined","distance":124.64}},"Jihomoravský":{"BBMLA":{"loc":["49.165260","16.580812"],"name":"Brno-Lány","idx":1,"regionName":"Jihomoravský","qualityClass":"very_good","distance":181.72},"BMOCA":{"loc":["49.208195","16.778444"],"name":"Sivice","idx":2,"regionName":"Jihomoravský","qualityClass":"good","distance":191.42},"BZNOA":{"loc":["48.842957","16.060127"],"name":"Znojmo","idx":2,"regionName":"Jihomoravský","qualityClass":"good","distance":177.06},"BHODA":{"loc":["48.857224","17.133333"],"name":"Hodonín","idx":1,"regionName":"Jihomoravský","qualityClass":"very_good","distance":234.33},"BBNIA":{"loc":["49.213211","16.678024"],"name":"Brno-Líšeň","idx":1,"regionName":"Jihomoravský","qualityClass":"very_good","distance":184.86},"BMISA":{"loc":["48.791767","16.724497"],"name":"Mikulov-Sedlec","idx":1,"regionName":"Jihomoravský","qualityClass":"very_good","distance":215.33},"BBMAA":{"loc":["49.216087","16.613836"],"name":"Brno-Arboretum","idx":1,"regionName":"Jihomoravský","qualityClass":"very_good","distance":180.7},"BBNAA":{"loc":["49.188889","16.626944"],"name":"Brno-Masná","idx":2,"regionName":"Jihomoravský","qualityClass":"good","distance":183.11},"BKUCA":{"loc":["48.881355","16.085817"],"name":"Kuchařovice","idx":0,"regionName":"Jihomoravský","qualityClass":"incomplete","distance":175.06},"BBMZA":{"loc":["49.185883","16.613661"],"name":"Brno-Zvonařka","idx":2,"regionName":"Jihomoravský","qualityClass":"good","distance":182.47},"BBDNA":{"loc":["49.202724","16.616287"],"name":"Brno - Dětská nemocnice","idx":1,"regionName":"Jihomoravský","qualityClass":"very_good","distance":181.64},"BBNYA":{"loc":["49.148972","16.696217"],"name":"Brno-Tuřany","idx":1,"regionName":"Jihomoravský","qualityClass":"very_good","distance":189.74},"BBNVA":{"loc":["49.198090","16.593643"],"name":"Brno-Úvoz (hot spot)","idx":3,"regionName":"Jihomoravský","qualityClass":"satisfactory","distance":180.52},"BBMVA":{"loc":["49.189621","16.569538"],"name":"Brno-Výstaviště","idx":3,"regionName":"Jihomoravský","qualityClass":"satisfactory","distance":179.55},"BBMSA":{"loc":["49.208160","16.642517"],"name":"Brno-Svatoplukova","idx":0,"regionName":"Jihomoravský","qualityClass":"incomplete","distance":182.94},"BMOKA":{"loc":["49.219444","16.755306"],"name":"Mokrá","idx":1,"regionName":"Jihomoravský","qualityClass":"very_good","distance":189.34}},"Karlovarský":{"KCHMA":{"loc":["50.065861","12.363442"],"name":"Cheb","idx":2,"regionName":"Karlovarský","qualityClass":"good","distance":149.5},"KPRBA":{"loc":["50.372478","12.615380"],"name":"Přebuz","idx":-1,"regionName":"Karlovarský","qualityClass":"undetermined","distance":135.98},"KSOMA":{"loc":["50.172825","12.672818"],"name":"Sokolov","idx":1,"regionName":"Karlovarský","qualityClass":"very_good","distance":128.03}},"Ústecký":{"UCHMA":{"loc":["50.467529","13.412696"],"name":"Chomutov","idx":2,"regionName":"Ústecký","qualityClass":"good","distance":87.76},"USNZA":{"loc":["50.789444","14.086799"],"name":"Sněžník","idx":-1,"regionName":"Ústecký","qualityClass":"undetermined","distance":86.63},"UDCMA":{"loc":["50.774151","14.218794"],"name":"Děčín","idx":1,"regionName":"Ústecký","qualityClass":"very_good","distance":82.6},"URVHA":{"loc":["50.579834","13.419506"],"name":"Rudolice v Horách","idx":2,"regionName":"Ústecký","qualityClass":"good","distance":94.56},"UTPMA":{"loc":["50.645279","13.851250"],"name":"Teplice ","idx":1,"regionName":"Ústecký","qualityClass":"very_good","distance":79.21},"UTUSA":{"loc":["50.376587","13.327622"],"name":"Tušimice","idx":1,"regionName":"Ústecký","qualityClass":"very_good","distance":88.35},"UULMA":{"loc":["50.661095","14.043063"],"name":"Ústí n.L.-město","idx":2,"regionName":"Ústecký","qualityClass":"good","distance":74.34},"UULKA":{"loc":["50.683525","14.041195"],"name":"Ústí n.L.-Kočkov","idx":1,"regionName":"Ústecký","qualityClass":"very_good","distance":76.68},"UKRUA":{"loc":["50.696671","13.847692"],"name":"Krupka","idx":3,"regionName":"Ústecký","qualityClass":"satisfactory","distance":84.19},"UMOMA":{"loc":["50.510365","13.645272"],"name":"Most","idx":2,"regionName":"Ústecký","qualityClass":"good","distance":77.36},"UDOKA":{"loc":["50.458855","14.170162"],"name":"Doksany","idx":-1,"regionName":"Ústecký","qualityClass":"undetermined","distance":50.14},"ULTTA":{"loc":["50.540897","14.119409"],"name":"Litoměřice","idx":1,"regionName":"Ústecký","qualityClass":"very_good","distance":59.93},"UMEDA":{"loc":["50.427589","13.130143"],"name":"Měděnec","idx":1,"regionName":"Ústecký","qualityClass":"very_good","distance":103.45},"UULDA":{"loc":["50.683125","13.997873"],"name":"Ústí n.L.-Všebořická (hot spot)","idx":2,"regionName":"Ústecký","qualityClass":"good","distance":77.88},"ULOMA":{"loc":["50.585766","13.673418"],"name":"Lom","idx":1,"regionName":"Ústecký","qualityClass":"very_good","distance":81.77}},"Olomoucký":{"MOLJA":{"loc":["49.601463","17.238073"],"name":"Olomouc-Hejčín","idx":1,"regionName":"Olomoucký","qualityClass":"very_good","distance":205.52},"MBELA":{"loc":["49.587082","17.804220"],"name":"Bělotín","idx":1,"regionName":"Olomoucký","qualityClass":"very_good","distance":245.48},"MJESA":{"loc":["50.242241","17.190180"],"name":"Jeseník-lázně","idx":1,"regionName":"Olomoucký","qualityClass":"very_good","distance":195.93},"MOLSA":{"loc":["49.592865","17.266094"],"name":"Olomouc-Šmeralova","idx":1,"regionName":"Olomoucký","qualityClass":"very_good","distance":207.72},"MPRRA":{"loc":["49.451656","17.454159"],"name":"Přerov","idx":1,"regionName":"Olomoucký","qualityClass":"very_good","distance":225.24},"MPSTA":{"loc":["49.467857","17.114725"],"name":"Prostějov","idx":1,"regionName":"Olomoucký","qualityClass":"very_good","distance":201.44}},"Liberecký":{"LSOUA":{"loc":["50.789646","15.319683"],"name":"Souš","idx":-1,"regionName":"Liberecký","qualityClass":"undetermined","distance":102.71},"LFRTA":{"loc":["50.940651","15.069817"],"name":"Frýdlant","idx":-1,"regionName":"Liberecký","qualityClass":"undetermined","distance":108.39},"LCLMA":{"loc":["50.698044","14.537345"],"name":"Česká Lípa","idx":2,"regionName":"Liberecký","qualityClass":"good","distance":72.61},"LLILA":{"loc":["50.755100","15.069967"],"name":"Liberec Rochlice","idx":1,"regionName":"Liberecký","qualityClass":"very_good","distance":89.91}}}};
+        // var meta = {
+        //     "date": "2017-03-22 08:00:00.0 UTC",
+        //     "regions": {
+        //         "Praha": {
+        //             "ALEGA": {
+        //                 "loc": ["50.072388", "14.430673"],
+        //                 "name": "Praha 2-Legerova (hot spot)",
+        //                 "idx": 3,
+        //                 "regionName": "Praha",
+        //                 "qualityClass": "satisfactory",
+        //                 "distance": 3.4
+        //             },
+        //             "ASMIA": {
+        //                 "loc": ["50.073135", "14.398141"],
+        //                 "name": "Praha 5-Smíchov",
+        //                 "idx": 2,
+        //                 "regionName": "Praha",
+        //                 "qualityClass": "good",
+        //                 "distance": 5.13
+        //             },
+        //             "ALIBA": {
+        //                 "loc": ["50.007305", "14.445933"],
+        //                 "name": "Praha 4-Libuš",
+        //                 "idx": 2,
+        //                 "regionName": "Praha",
+        //                 "qualityClass": "good",
+        //                 "distance": 4.5
+        //             },
+        //             "ACHOA": {
+        //                 "loc": ["50.030170", "14.517450"],
+        //                 "name": "Praha 4-Chodov",
+        //                 "idx": 0,
+        //                 "regionName": "Praha",
+        //                 "qualityClass": "incomplete",
+        //                 "distance": 4.68
+        //             },
+        //             "AVYNA": {
+        //                 "loc": ["50.111080", "14.503096"],
+        //                 "name": "Praha 9-Vysočany",
+        //                 "idx": 3,
+        //                 "regionName": "Praha",
+        //                 "qualityClass": "satisfactory",
+        //                 "distance": 7.83
+        //             },
+        //             "ARIEA": {
+        //                 "loc": ["50.081482", "14.442692"],
+        //                 "name": "Praha 2-Riegrovy sady",
+        //                 "idx": 2,
+        //                 "regionName": "Praha",
+        //                 "qualityClass": "good",
+        //                 "distance": 3.97
+        //             },
+        //             "ASTOA": {
+        //                 "loc": ["50.046131", "14.331413"],
+        //                 "name": "Praha 5-Stodůlky",
+        //                 "idx": 1,
+        //                 "regionName": "Praha",
+        //                 "qualityClass": "very_good",
+        //                 "distance": 9
+        //             },
+        //             "AKOBA": {
+        //                 "loc": ["50.122189", "14.467578"],
+        //                 "name": "Praha 8-Kobylisy",
+        //                 "idx": 1,
+        //                 "regionName": "Praha",
+        //                 "qualityClass": "very_good",
+        //                 "distance": 8.39
+        //             },
+        //             "APRUA": {
+        //                 "loc": ["50.062298", "14.537820"],
+        //                 "name": "Praha 10-Průmyslová",
+        //                 "idx": 2,
+        //                 "regionName": "Praha",
+        //                 "qualityClass": "good",
+        //                 "distance": 5.98
+        //             },
+        //             "AVRSA": {
+        //                 "loc": ["50.066429", "14.446152"],
+        //                 "name": "Praha 10-Vršovice",
+        //                 "idx": 1,
+        //                 "regionName": "Praha",
+        //                 "qualityClass": "very_good",
+        //                 "distance": 2.3
+        //             },
+        //             "AKALA": {
+        //                 "loc": ["50.094238", "14.442049"],
+        //                 "name": "Praha 8-Karlín",
+        //                 "idx": 1,
+        //                 "regionName": "Praha",
+        //                 "qualityClass": "very_good",
+        //                 "distance": 5.36
+        //             },
+        //             "ASUCA": {
+        //                 "loc": ["50.126530", "14.384639"],
+        //                 "name": "Praha 6-Suchdol",
+        //                 "idx": 1,
+        //                 "regionName": "Praha",
+        //                 "qualityClass": "very_good",
+        //                 "distance": 10.25
+        //             },
+        //             "ABREA": {
+        //                 "loc": ["50.084385", "14.380116"],
+        //                 "name": "Praha 6-Břevnov",
+        //                 "idx": 3,
+        //                 "regionName": "Praha",
+        //                 "qualityClass": "satisfactory",
+        //                 "distance": 6.91
+        //             },
+        //             "AREPA": {
+        //                 "loc": ["50.088066", "14.429220"],
+        //                 "name": "Praha 1-n. Republiky",
+        //                 "idx": 3,
+        //                 "regionName": "Praha",
+        //                 "qualityClass": "satisfactory",
+        //                 "distance": 4.98
+        //             }
+        //         }
+        //     }
+        // };
+        setMeta(meta);
+        resolve(meta);
+        return;
         $.ajax({
             url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/summary',
             method: 'GET',
@@ -1924,6 +2110,421 @@ function searchPlaces(name) {
 function loadLocationName(lat, lon) {
     return new Promise(function (resolve, reject) {
         console.log("Perform geocode query: ", name);
+        var result = {
+            "results" : [
+                {
+                    "address_components" : [
+                        {
+                            "long_name" : "Za Brumlovkou",
+                            "short_name" : "Za Brumlovkou",
+                            "types" : [ "route" ]
+                        },
+                        {
+                            "long_name" : "Praha 4",
+                            "short_name" : "Praha 4",
+                            "types" : [ "political", "sublocality", "sublocality_level_1" ]
+                        },
+                        {
+                            "long_name" : "Praha",
+                            "short_name" : "Praha",
+                            "types" : [ "locality", "political" ]
+                        },
+                        {
+                            "long_name" : "Česko",
+                            "short_name" : "CZ",
+                            "types" : [ "country", "political" ]
+                        },
+                        {
+                            "long_name" : "140 00",
+                            "short_name" : "140 00",
+                            "types" : [ "postal_code" ]
+                        }
+                    ],
+                    "formatted_address" : "Za Brumlovkou, 140 00 Praha 4, Česko",
+                    "geometry" : {
+                        "bounds" : {
+                            "northeast" : {
+                                "lat" : 50.0472487,
+                                "lng" : 14.4581717
+                            },
+                            "southwest" : {
+                                "lat" : 50.0471276,
+                                "lng" : 14.4569701
+                            }
+                        },
+                        "location" : {
+                            "lat" : 50.0471696,
+                            "lng" : 14.457576
+                        },
+                        "location_type" : "GEOMETRIC_CENTER",
+                        "viewport" : {
+                            "northeast" : {
+                                "lat" : 50.0485371302915,
+                                "lng" : 14.4589198802915
+                            },
+                            "southwest" : {
+                                "lat" : 50.0458391697085,
+                                "lng" : 14.4562219197085
+                            }
+                        }
+                    },
+                    "place_id" : "ChIJV_ugBpOTC0cRUBAsr32I9jA",
+                    "types" : [ "route" ]
+                },
+                {
+                    "address_components" : [
+                        {
+                            "long_name" : "Praha 4",
+                            "short_name" : "Praha 4",
+                            "types" : [ "political", "sublocality", "sublocality_level_1" ]
+                        },
+                        {
+                            "long_name" : "Praha",
+                            "short_name" : "Praha",
+                            "types" : [ "locality", "political" ]
+                        },
+                        {
+                            "long_name" : "Hlavní město Praha",
+                            "short_name" : "Hlavní město Praha",
+                            "types" : [ "administrative_area_level_2", "political" ]
+                        },
+                        {
+                            "long_name" : "Hlavní město Praha",
+                            "short_name" : "Hlavní město Praha",
+                            "types" : [ "administrative_area_level_1", "political" ]
+                        },
+                        {
+                            "long_name" : "Česko",
+                            "short_name" : "CZ",
+                            "types" : [ "country", "political" ]
+                        }
+                    ],
+                    "formatted_address" : "Praha 4, Česko",
+                    "geometry" : {
+                        "bounds" : {
+                            "northeast" : {
+                                "lat" : 50.0680017,
+                                "lng" : 14.4962484
+                            },
+                            "southwest" : {
+                                "lat" : 50.0132128,
+                                "lng" : 14.3958785
+                            }
+                        },
+                        "location" : {
+                            "lat" : 50.0624463,
+                            "lng" : 14.4404548
+                        },
+                        "location_type" : "APPROXIMATE",
+                        "viewport" : {
+                            "northeast" : {
+                                "lat" : 50.0680017,
+                                "lng" : 14.4962484
+                            },
+                            "southwest" : {
+                                "lat" : 50.0132128,
+                                "lng" : 14.3958785
+                            }
+                        }
+                    },
+                    "place_id" : "ChIJ89Z1ePGTC0cRILMVZg-vAAU",
+                    "types" : [ "political", "sublocality", "sublocality_level_1" ]
+                },
+                {
+                    "address_components" : [
+                        {
+                            "long_name" : "Praha",
+                            "short_name" : "Praha",
+                            "types" : [ "locality", "political" ]
+                        },
+                        {
+                            "long_name" : "Hlavní město Praha",
+                            "short_name" : "Hlavní město Praha",
+                            "types" : [ "administrative_area_level_2", "political" ]
+                        },
+                        {
+                            "long_name" : "Hlavní město Praha",
+                            "short_name" : "Hlavní město Praha",
+                            "types" : [ "administrative_area_level_1", "political" ]
+                        },
+                        {
+                            "long_name" : "Česko",
+                            "short_name" : "CZ",
+                            "types" : [ "country", "political" ]
+                        }
+                    ],
+                    "formatted_address" : "Praha, Česko",
+                    "geometry" : {
+                        "bounds" : {
+                            "northeast" : {
+                                "lat" : 50.177403,
+                                "lng" : 14.7067945
+                            },
+                            "southwest" : {
+                                "lat" : 49.94193629999999,
+                                "lng" : 14.2244533
+                            }
+                        },
+                        "location" : {
+                            "lat" : 50.0755381,
+                            "lng" : 14.4378005
+                        },
+                        "location_type" : "APPROXIMATE",
+                        "viewport" : {
+                            "northeast" : {
+                                "lat" : 50.177403,
+                                "lng" : 14.7067945
+                            },
+                            "southwest" : {
+                                "lat" : 49.94193629999999,
+                                "lng" : 14.2244533
+                            }
+                        }
+                    },
+                    "place_id" : "ChIJi3lwCZyTC0cRkEAWZg-vAAQ",
+                    "types" : [ "locality", "political" ]
+                },
+                {
+                    "address_components" : [
+                        {
+                            "long_name" : "Praha 4",
+                            "short_name" : "Praha 4",
+                            "types" : [ "postal_town" ]
+                        },
+                        {
+                            "long_name" : "Česko",
+                            "short_name" : "CZ",
+                            "types" : [ "country", "political" ]
+                        },
+                        {
+                            "long_name" : "140 00",
+                            "short_name" : "140 00",
+                            "types" : [ "postal_code" ]
+                        }
+                    ],
+                    "formatted_address" : "Praha 4, 140 00, Česko",
+                    "geometry" : {
+                        "bounds" : {
+                            "northeast" : {
+                                "lat" : 50.0680261,
+                                "lng" : 14.477242
+                            },
+                            "southwest" : {
+                                "lat" : 50.0216708,
+                                "lng" : 14.4226236
+                            }
+                        },
+                        "location" : {
+                            "lat" : 50.041463,
+                            "lng" : 14.4429612
+                        },
+                        "location_type" : "APPROXIMATE",
+                        "viewport" : {
+                            "northeast" : {
+                                "lat" : 50.0680261,
+                                "lng" : 14.477242
+                            },
+                            "southwest" : {
+                                "lat" : 50.0216708,
+                                "lng" : 14.4226236
+                            }
+                        }
+                    },
+                    "place_id" : "ChIJEQAOS0WRC0cRmJYjXaCxvic",
+                    "types" : [ "postal_town" ]
+                },
+                {
+                    "address_components" : [
+                        {
+                            "long_name" : "140 00",
+                            "short_name" : "140 00",
+                            "types" : [ "postal_code" ]
+                        },
+                        {
+                            "long_name" : "Praha 4",
+                            "short_name" : "Praha 4",
+                            "types" : [ "political", "sublocality", "sublocality_level_1" ]
+                        },
+                        {
+                            "long_name" : "Praha",
+                            "short_name" : "Praha",
+                            "types" : [ "locality", "political" ]
+                        },
+                        {
+                            "long_name" : "Česko",
+                            "short_name" : "CZ",
+                            "types" : [ "country", "political" ]
+                        }
+                    ],
+                    "formatted_address" : "140 00 Praha-Praha 4, Česko",
+                    "geometry" : {
+                        "bounds" : {
+                            "northeast" : {
+                                "lat" : 50.0680261,
+                                "lng" : 14.477242
+                            },
+                            "southwest" : {
+                                "lat" : 50.0216708,
+                                "lng" : 14.4226236
+                            }
+                        },
+                        "location" : {
+                            "lat" : 50.041463,
+                            "lng" : 14.4429612
+                        },
+                        "location_type" : "APPROXIMATE",
+                        "viewport" : {
+                            "northeast" : {
+                                "lat" : 50.0680261,
+                                "lng" : 14.477242
+                            },
+                            "southwest" : {
+                                "lat" : 50.0216708,
+                                "lng" : 14.4226236
+                            }
+                        }
+                    },
+                    "place_id" : "ChIJe1crwfKTC0cRIAljmBKvABw",
+                    "types" : [ "postal_code" ]
+                },
+                {
+                    "address_components" : [
+                        {
+                            "long_name" : "Hlavní město Praha",
+                            "short_name" : "Hlavní město Praha",
+                            "types" : [ "administrative_area_level_2", "political" ]
+                        },
+                        {
+                            "long_name" : "Hlavní město Praha",
+                            "short_name" : "Hlavní město Praha",
+                            "types" : [ "administrative_area_level_1", "political" ]
+                        },
+                        {
+                            "long_name" : "Česko",
+                            "short_name" : "CZ",
+                            "types" : [ "country", "political" ]
+                        }
+                    ],
+                    "formatted_address" : "Hlavní město Praha, Česko",
+                    "geometry" : {
+                        "bounds" : {
+                            "northeast" : {
+                                "lat" : 50.177403,
+                                "lng" : 14.7067945
+                            },
+                            "southwest" : {
+                                "lat" : 49.94193629999999,
+                                "lng" : 14.2244533
+                            }
+                        },
+                        "location" : {
+                            "lat" : 50.0599268,
+                            "lng" : 14.5039935
+                        },
+                        "location_type" : "APPROXIMATE",
+                        "viewport" : {
+                            "northeast" : {
+                                "lat" : 50.177403,
+                                "lng" : 14.7067945
+                            },
+                            "southwest" : {
+                                "lat" : 49.94193629999999,
+                                "lng" : 14.2244533
+                            }
+                        }
+                    },
+                    "place_id" : "ChIJi3lwCZyTC0cRAKkUZg-vAAM",
+                    "types" : [ "administrative_area_level_2", "political" ]
+                },
+                {
+                    "address_components" : [
+                        {
+                            "long_name" : "Hlavní město Praha",
+                            "short_name" : "Hlavní město Praha",
+                            "types" : [ "administrative_area_level_1", "political" ]
+                        },
+                        {
+                            "long_name" : "Česko",
+                            "short_name" : "CZ",
+                            "types" : [ "country", "political" ]
+                        }
+                    ],
+                    "formatted_address" : "Hlavní město Praha, Česko",
+                    "geometry" : {
+                        "bounds" : {
+                            "northeast" : {
+                                "lat" : 50.177403,
+                                "lng" : 14.7067945
+                            },
+                            "southwest" : {
+                                "lat" : 49.94193629999999,
+                                "lng" : 14.2244533
+                            }
+                        },
+                        "location" : {
+                            "lat" : 50.0599268,
+                            "lng" : 14.5039935
+                        },
+                        "location_type" : "APPROXIMATE",
+                        "viewport" : {
+                            "northeast" : {
+                                "lat" : 50.177403,
+                                "lng" : 14.7067945
+                            },
+                            "southwest" : {
+                                "lat" : 49.94193629999999,
+                                "lng" : 14.2244533
+                            }
+                        }
+                    },
+                    "place_id" : "ChIJi3lwCZyTC0cRIKgUZg-vAAE",
+                    "types" : [ "administrative_area_level_1", "political" ]
+                },
+                {
+                    "address_components" : [
+                        {
+                            "long_name" : "Česko",
+                            "short_name" : "CZ",
+                            "types" : [ "country", "political" ]
+                        }
+                    ],
+                    "formatted_address" : "Česko",
+                    "geometry" : {
+                        "bounds" : {
+                            "northeast" : {
+                                "lat" : 51.0557185,
+                                "lng" : 18.8592361
+                            },
+                            "southwest" : {
+                                "lat" : 48.5518081,
+                                "lng" : 12.090589
+                            }
+                        },
+                        "location" : {
+                            "lat" : 49.81749199999999,
+                            "lng" : 15.472962
+                        },
+                        "location_type" : "APPROXIMATE",
+                        "viewport" : {
+                            "northeast" : {
+                                "lat" : 51.0556786,
+                                "lng" : 18.8592361
+                            },
+                            "southwest" : {
+                                "lat" : 48.5518081,
+                                "lng" : 12.090589
+                            }
+                        }
+                    },
+                    "place_id" : "ChIJQ4Ld14-UC0cRb1jb03UcZvg",
+                    "types" : [ "country", "political" ]
+                }
+            ],
+            "status" : "OK"
+        };
+        var address = collectAddress(result.results[0].address_components, ["neighborhood", "sublocality", "locality"]);
+        resolve(address);
+        return;
         $.ajax({
             url: 'https://maps.googleapis.com/maps/api/geocode/json',
             method: 'GET',
