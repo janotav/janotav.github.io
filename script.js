@@ -10,6 +10,7 @@ var myAlarm;
 var myMeta;
 var myLocation;
 var myLocationJitter;
+var myLocationName;
 var myStations;
 var myFilter;
 var myFavorites = {};
@@ -27,6 +28,8 @@ var exitPendingId = 0;
 
 var uvPrediction;
 var uvPredictionChart;
+var uvOnline;
+var uvOnlineChart;
 
 // structural elements
 var main_page;
@@ -124,15 +127,29 @@ function uvIndex(value) {
 function setUvPrediction(prediction) {
     uvPrediction = prediction;
 
+    // TODO: two distinct progress inidication? wait for both?
+
     $("#uv_running").remove();
     $("#alarm1").find(".alarm_running").removeClass("invisible");
-    $("#slide1").find(".uv_outer").removeClass("invisible");
+    var slide1 = $("#slide1");
+    slide1.find(".uv_outer").removeClass("invisible");
+    updateSlideHeight(slide1.find(".slide_body"));
 
     if (typeof uvPredictionChart !== "undefined") {
         uvPredictionChart.destroy();
     }
 
     var options = {
+        tooltips: {
+            callbacks: {
+                label: function (tooltipItems, data) {
+                    var valueClass = uv_idx[uvIndex(uvPrediction[tooltipItems.index])];
+                    return uvLabel[valueClass] + " (" + tooltipItems.xLabel + ")"
+                }
+            },
+            titleFontSize: 30,
+            bodyFontSize: 30
+        },
         legend: {
             display: false
         },
@@ -186,6 +203,87 @@ function setUvPrediction(prediction) {
     displayUvPredictionAlarm();
 }
 
+
+function setUvOnline(uvData) {
+    uvOnline = uvData;
+
+    if (typeof uvOnlineChart !== "undefined") {
+        uvOnlineChart.destroy();
+    }
+
+    var tooltipIndex;
+    var options = {
+        tooltips: {
+            mode: 'index',
+            intersect: false,
+            titleFontSize: 30,
+            bodyFontSize: 30,
+            multiKeyBackground: "#000000",
+            bodySpacing: 10,
+            callbacks: {
+                title: function (tooltipItems, data) {
+                    return timeLabels[tooltipIndex];
+                },
+                label: function (tooltipItem, data) {
+                    tooltipIndex = tooltipItem.index;
+                    return data.datasets[tooltipItem.datasetIndex].label + " " + tooltipItem.yLabel;
+                }
+            }
+        },
+        legend: {
+            labels: {
+                fontSize: 36
+            }
+        },
+        scales: {
+            xAxes: [{
+                ticks: {
+                    fontSize: 30,
+                    beginAtZero:true,
+                }
+            }],
+            yAxes: [{
+                ticks: {
+                    beginAtZero:true,
+                    fontSize: 30,
+                }
+            }]
+        }
+    };
+
+    function makeGaps(n) {
+        return n < 0? null: n;
+    }
+
+    var timeLabels = generateTimeLabels(uvData.from, 600000, uvData.data["Hradec Králové"].length);
+
+    uvOnlineChart = new Chart($("#uv_online"), {
+        type: "line",
+        data: {
+            labels: timeLabels.map(function (time) {
+                return time.endsWith(":00")? time: "";
+            }),
+            datasets: [{
+                label: "Hradec Králové",
+                data: uvData.data["Hradec Králové"].map(makeGaps),
+                spanGaps: true,
+                borderColor: "#FF0000"
+            },{
+                label: "Košetice",
+                data: uvData.data["Košetice"].map(makeGaps),
+                spanGaps: true,
+                borderColor: "#00FF00"
+            }, {
+                label: "Kuchařovice",
+                data: uvData.data["Kuchařovice"].map(makeGaps),
+                spanGaps: true,
+                borderColor: "#0000FF"
+            }]
+        },
+        options: options
+    });
+}
+
 function loadPosition(store) {
     if (navigator.geolocation) {
         console.log('Retrieving current position');
@@ -195,8 +293,22 @@ function loadPosition(store) {
     }
 }
 
+function setLocationName(name) {
+    myLocationName = name;
+
+    $(".location_name").text(name);
+    $("#uv_alarm").find(".uv_toggle").each(function (index, element) {
+        if (typeof myLocationName === "undefined") {
+            $(element).addClass("inactive");
+        } else {
+            $(element).removeClass("inactive");
+        }
+    });
+}
+
 function setPosition(position, store) {
     myLocation = position;
+    setLocationName(undefined);
     var jitter = false;
     var difference;
     if (typeof myLocationJitter !== "undefined") {
@@ -222,9 +334,7 @@ function setPosition(position, store) {
 
 function displayLocation() {
     if (typeof myLocation !== 'undefined') {
-        loadLocationName(myLocation.coords.latitude, myLocation.coords.longitude).then(function (name) {
-            $(".location_name").text(name);
-        });
+        loadLocationName(myLocation.coords.latitude, myLocation.coords.longitude).then(setLocationName);
     }
 }
 
@@ -238,12 +348,17 @@ function initializeComponents() {
 
     var alarmComponent = components.find(".alarm_component");
     initializeAlarm($("#alarm0"), alarmComponent, function () {
-        if (typeof myAlarm !== 'undefined' && typeof myAlarm.code !== 'undefined') {
+        if (typeof myAlarm !== 'undefined' && typeof myAlarm.emission !== 'undefined') {
             removeEmissionAlarm();
         }
         return false;
     });
-    initializeAlarm($("#alarm1"), alarmComponent, function () {});
+    initializeAlarm($("#alarm1"), alarmComponent, function () {
+        if (typeof myAlarm !== 'undefined' && typeof myAlarm.uv !== 'undefined') {
+            removeUvPredictionAlarm();
+        }
+        return false;
+    });
 
     components.remove();
 }
@@ -374,6 +489,8 @@ function initialize() {
         });
     });
 
+    loadUvOnline();
+
     $("#time_spin").click(reload);
 
     installPreventPullToReload();
@@ -486,6 +603,15 @@ function initialize() {
     select_item($("#history_period_1"), historyLoader);
     select_item($("#history_period_7"), historyLoader);
     select_item($("#history_period_28"), historyLoader);
+
+    $("#uv_alarm").find(".uv_toggle").each(function (index, element) {
+        var jqElem = $(element);
+        jqElem.click(function () {
+            if (typeof myLocationName !== "undefined") {
+                updateUvPredictionAlarm(Number(jqElem.text()), myLocationName);
+            }
+        });
+    });
 }
 
 function select_item(item, callback) {
@@ -1228,7 +1354,7 @@ function setMeta(meta) {
     showAlarmProgress($("#alarm0"));
     var slide = $("#slide0");
     slide.find(".stations_outer").removeClass("invisible");
-    updateSlideHeight((slide.find(".slide_body")));
+    updateSlideHeight(slide.find(".slide_body"));
 
     var stations = $("#stations");
     stations.empty();
@@ -1429,17 +1555,19 @@ function displayUvPredictionAlarm() {
         return;
     }
 
-    if (myAlarm === false || typeof myAlarm.uvLevel === "undefined") {
+    var uv = myAlarm.uv;
+
+    if (myAlarm === false || typeof uv === "undefined") {
         displayAlarm(alarm, false, "", "", "", "nenastaveno", "", "", false, "");
         return;
     }
 
     var valueClass = uv_idx[uvIndex(uvPrediction[0])];
     var valueText = uvLabel[valueClass] + "-" + Math.round(uvPrediction[0]);
-    var levelClass = uv_idx[uvIndex(myAlarm.uvLevel)];
-    var levelText = uvLabel[levelClass] + "-" + myAlarm.uvLevel;
+    var levelClass = uv_idx[uvIndex(uv.level)];
+    var levelText = uvLabel[levelClass] + "-" + uv.level;
 
-    displayAlarm(alarm, true, myAlarm.uvLocation, valueText, valueClass, levelText, myAlarm.uvLevel, levelClass, "", "a horší");
+    displayAlarm(alarm, true, uv.name, valueText, valueClass, levelText, uv.level, levelClass, "", "a horší");
 }
 
 function displayEmissionAlarm() {
@@ -1449,30 +1577,31 @@ function displayEmissionAlarm() {
         return;
     }
 
-    if (myAlarm === false || typeof myAlarm.code === "undefined") {
+    var emission = myAlarm.emission;
+    if (myAlarm === false || typeof emission === "undefined") {
         displayAlarm(alarm, false, "", "", "", "nenastaveno", "", "", false, "");
         return;
     }
 
-    var station = myStations[myAlarm.code];
-    var stationName = typeof myStations[myAlarm.code] === "undefined"? "neznámá stanice": myStations[myAlarm.code].name;
+    var station = myStations[emission.code];
+    var stationName = typeof myStations[emission.code] === "undefined"? "neznámá stanice": myStations[emission.code].name;
 
     var valueClass = emission_idx[station.idx + 1];
     var valueText = qualityLabel[valueClass];
-    var levelClass = emission_idx[Math.abs(myAlarm.level) + 1];
+    var levelClass = emission_idx[Math.abs(emission.level) + 1];
     var levelText = qualityLabel[levelClass];
-    var levelImprovement = (myAlarm.level < 0);
+    var levelImprovement = (emission.level < 0);
 
     var direction;
-    if (myAlarm.level == -1 || myAlarm.level == 6) {
+    if (emission.level == -1 || emission.level == 6) {
         direction = "";
-    } else if (myAlarm.level > 0) {
+    } else if (emission.level > 0) {
         direction = " a horší";
     } else {
         direction = " a lepší";
     }
 
-    displayAlarm(alarm, true, stationName, valueText, valueClass, levelText, Math.abs(myAlarm.level), levelClass, levelImprovement, direction);
+    displayAlarm(alarm, true, stationName, valueText, valueClass, levelText, Math.abs(emission.level), levelClass, levelImprovement, direction);
 }
 
 const messaging = firebase.messaging();
@@ -1543,27 +1672,42 @@ function blink(headerInner, qualityClass, n) {
 }
 
 function removeEmissionAlarm() {
-    // TODO: refactor alarm structure & lambda
-    delete myAlarm.code;
-    delete myAlarm.level;
-    myAlarm.remove = true;
+    delete myAlarm.emission;
     updateAlarm();
     displayEmissionAlarm();
 }
 
 function updateEmissionAlarm(code, level) {
-    myAlarm.code = code;
-    myAlarm.level = level;
-    delete myAlarm.remove;
+    myAlarm.emission = {
+        code: code,
+        level: level
+    };
     updateAlarm();
     displayEmissionAlarm();
+}
+
+function removeUvPredictionAlarm() {
+    delete myAlarm.uv;
+    updateAlarm();
+    displayUvPredictionAlarm();
+}
+
+function updateUvPredictionAlarm(level, name) {
+    myAlarm.uv = {
+        level: level,
+        lat: myLocation.coords.latitude,
+        lon: myLocation.coords.longitude,
+        name: name
+    };
+    updateAlarm();
+    displayUvPredictionAlarm();
 }
 
 function updateAlarm() {
     myAlarm.token = myToken;
     // waiting for the server call makes the app look a little bit unresponsive, let's assume the operation succeeds
     $.ajax({
-        url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/alarm',
+        url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/alarm2',
         method: 'POST',
         data: JSON.stringify(myAlarm),
         contentType: 'application/json',
@@ -1573,7 +1717,7 @@ function updateAlarm() {
     }).fail(function (err) {
         console.error("Unablet to set alarm: ", myAlarm, err);
         // revert to previous setting if server didn't succeed
-        // TODO: reload from server and show
+        loadAlarm();
     });
 }
 
@@ -1581,12 +1725,11 @@ function loadAlarm() {
     return new Promise(function (resolve, reject) {
         console.log('Retrieving alarm from the server');
         $.ajax({
-            url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/alarm',
-            method: 'POST',
-            data: JSON.stringify({
-                token: myToken,
-                remove: false
-            }),
+            url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/alarm2',
+            method: 'GET',
+            data: {
+                token: myToken
+            },
             contentType: 'application/json',
             headers: {
                 'x-api-key': 'api_key_public_access'
@@ -1783,25 +1926,22 @@ function getMeasurementName(type) {
     return emission_types[res[1]];
 }
 
-function generateTimeLabels(to) {
+function generateTimeLabels(date, step, count) {
 
     function pad(n) {
         return n < 10? "0" + String(n): String(n);
     }
-    var toDate = parseUtcDate(to);
-    var fromTime = toDate.getTime() - 3600000 * 23;
+    var initialDate = parseUtcDate(date);
     var ret = [];
 
-    while (true) {
-        ret.push(String(toDate.getHours()) + ":" + pad(toDate.getMinutes()));
-        var newTime = toDate.getTime() - 3600000;
-        if (newTime < fromTime) {
-            break;
-        }
-        toDate = new Date(newTime);
+    for (var i = 0; i < count; i++) {
+        ret.push(String(initialDate.getHours()) + ":" + pad(initialDate.getMinutes()));
+        initialDate = new Date(initialDate.getTime() + step);
     }
 
-    ret.reverse();
+    if (step < 0) {
+        ret.reverse();
+    }
     return ret;
 }
 
@@ -1932,7 +2072,7 @@ function setHistory(to, history, precisionFunc, selectMeasurementType, multipleD
             //options.scales.yAxes[0].ticks.max = emission_limits[type].slice(-2, -1)[0];
         }
         var dataset = createDataset(history[type], idxValueFunc, precisionFunc);
-        var timeLabels = generateTimeLabels(to);
+        var timeLabels = generateTimeLabels(to, -3600000, 24);
         var startOffset = 0;
         if (multipleDays) {
             startOffset = timeLabels.indexOf("0:00");
@@ -2007,6 +2147,33 @@ function loadUvPrediction() {
             resolve(prediction);
         }).catch(function (err) {
             console.error("Failed to retrieve UV index prediction: ", err);
+            reject(err);
+        });
+    });
+}
+
+function loadUvOnline() {
+    console.log("Retrieving UV online data");
+    return new Promise(function (resolve, reject) {
+        var today = new Date();
+        today.setHours(0, 0, 0, 0);
+        var tomorrow = new Date(today.getTime() + 86400000);
+        $.ajax({
+            url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/uv',
+            method: 'GET',
+            headers: {
+                'x-api-key': 'api_key_public_access'
+            },
+            data: {
+                from: toUtcDate(today),
+                to: toUtcDate(tomorrow)
+            }
+        }).done(function (onlineData) {
+            console.log("UV online data: ", onlineData);
+            setUvOnline(onlineData);
+            resolve(onlineData);
+        }).catch(function (err) {
+            console.error("Failed to retrieve UV online data: ", err);
             reject(err);
         });
     });
@@ -2265,421 +2432,6 @@ function searchPlaces(name) {
 function loadLocationName(lat, lon) {
     return new Promise(function (resolve, reject) {
         console.log("Perform geocode query: ", name);
-        var result = {
-            "results" : [
-                {
-                    "address_components" : [
-                        {
-                            "long_name" : "Za Brumlovkou",
-                            "short_name" : "Za Brumlovkou",
-                            "types" : [ "route" ]
-                        },
-                        {
-                            "long_name" : "Praha 4",
-                            "short_name" : "Praha 4",
-                            "types" : [ "political", "sublocality", "sublocality_level_1" ]
-                        },
-                        {
-                            "long_name" : "Praha",
-                            "short_name" : "Praha",
-                            "types" : [ "locality", "political" ]
-                        },
-                        {
-                            "long_name" : "Česko",
-                            "short_name" : "CZ",
-                            "types" : [ "country", "political" ]
-                        },
-                        {
-                            "long_name" : "140 00",
-                            "short_name" : "140 00",
-                            "types" : [ "postal_code" ]
-                        }
-                    ],
-                    "formatted_address" : "Za Brumlovkou, 140 00 Praha 4, Česko",
-                    "geometry" : {
-                        "bounds" : {
-                            "northeast" : {
-                                "lat" : 50.0472487,
-                                "lng" : 14.4581717
-                            },
-                            "southwest" : {
-                                "lat" : 50.0471276,
-                                "lng" : 14.4569701
-                            }
-                        },
-                        "location" : {
-                            "lat" : 50.0471696,
-                            "lng" : 14.457576
-                        },
-                        "location_type" : "GEOMETRIC_CENTER",
-                        "viewport" : {
-                            "northeast" : {
-                                "lat" : 50.0485371302915,
-                                "lng" : 14.4589198802915
-                            },
-                            "southwest" : {
-                                "lat" : 50.0458391697085,
-                                "lng" : 14.4562219197085
-                            }
-                        }
-                    },
-                    "place_id" : "ChIJV_ugBpOTC0cRUBAsr32I9jA",
-                    "types" : [ "route" ]
-                },
-                {
-                    "address_components" : [
-                        {
-                            "long_name" : "Praha 4",
-                            "short_name" : "Praha 4",
-                            "types" : [ "political", "sublocality", "sublocality_level_1" ]
-                        },
-                        {
-                            "long_name" : "Praha",
-                            "short_name" : "Praha",
-                            "types" : [ "locality", "political" ]
-                        },
-                        {
-                            "long_name" : "Hlavní město Praha",
-                            "short_name" : "Hlavní město Praha",
-                            "types" : [ "administrative_area_level_2", "political" ]
-                        },
-                        {
-                            "long_name" : "Hlavní město Praha",
-                            "short_name" : "Hlavní město Praha",
-                            "types" : [ "administrative_area_level_1", "political" ]
-                        },
-                        {
-                            "long_name" : "Česko",
-                            "short_name" : "CZ",
-                            "types" : [ "country", "political" ]
-                        }
-                    ],
-                    "formatted_address" : "Praha 4, Česko",
-                    "geometry" : {
-                        "bounds" : {
-                            "northeast" : {
-                                "lat" : 50.0680017,
-                                "lng" : 14.4962484
-                            },
-                            "southwest" : {
-                                "lat" : 50.0132128,
-                                "lng" : 14.3958785
-                            }
-                        },
-                        "location" : {
-                            "lat" : 50.0624463,
-                            "lng" : 14.4404548
-                        },
-                        "location_type" : "APPROXIMATE",
-                        "viewport" : {
-                            "northeast" : {
-                                "lat" : 50.0680017,
-                                "lng" : 14.4962484
-                            },
-                            "southwest" : {
-                                "lat" : 50.0132128,
-                                "lng" : 14.3958785
-                            }
-                        }
-                    },
-                    "place_id" : "ChIJ89Z1ePGTC0cRILMVZg-vAAU",
-                    "types" : [ "political", "sublocality", "sublocality_level_1" ]
-                },
-                {
-                    "address_components" : [
-                        {
-                            "long_name" : "Praha",
-                            "short_name" : "Praha",
-                            "types" : [ "locality", "political" ]
-                        },
-                        {
-                            "long_name" : "Hlavní město Praha",
-                            "short_name" : "Hlavní město Praha",
-                            "types" : [ "administrative_area_level_2", "political" ]
-                        },
-                        {
-                            "long_name" : "Hlavní město Praha",
-                            "short_name" : "Hlavní město Praha",
-                            "types" : [ "administrative_area_level_1", "political" ]
-                        },
-                        {
-                            "long_name" : "Česko",
-                            "short_name" : "CZ",
-                            "types" : [ "country", "political" ]
-                        }
-                    ],
-                    "formatted_address" : "Praha, Česko",
-                    "geometry" : {
-                        "bounds" : {
-                            "northeast" : {
-                                "lat" : 50.177403,
-                                "lng" : 14.7067945
-                            },
-                            "southwest" : {
-                                "lat" : 49.94193629999999,
-                                "lng" : 14.2244533
-                            }
-                        },
-                        "location" : {
-                            "lat" : 50.0755381,
-                            "lng" : 14.4378005
-                        },
-                        "location_type" : "APPROXIMATE",
-                        "viewport" : {
-                            "northeast" : {
-                                "lat" : 50.177403,
-                                "lng" : 14.7067945
-                            },
-                            "southwest" : {
-                                "lat" : 49.94193629999999,
-                                "lng" : 14.2244533
-                            }
-                        }
-                    },
-                    "place_id" : "ChIJi3lwCZyTC0cRkEAWZg-vAAQ",
-                    "types" : [ "locality", "political" ]
-                },
-                {
-                    "address_components" : [
-                        {
-                            "long_name" : "Praha 4",
-                            "short_name" : "Praha 4",
-                            "types" : [ "postal_town" ]
-                        },
-                        {
-                            "long_name" : "Česko",
-                            "short_name" : "CZ",
-                            "types" : [ "country", "political" ]
-                        },
-                        {
-                            "long_name" : "140 00",
-                            "short_name" : "140 00",
-                            "types" : [ "postal_code" ]
-                        }
-                    ],
-                    "formatted_address" : "Praha 4, 140 00, Česko",
-                    "geometry" : {
-                        "bounds" : {
-                            "northeast" : {
-                                "lat" : 50.0680261,
-                                "lng" : 14.477242
-                            },
-                            "southwest" : {
-                                "lat" : 50.0216708,
-                                "lng" : 14.4226236
-                            }
-                        },
-                        "location" : {
-                            "lat" : 50.041463,
-                            "lng" : 14.4429612
-                        },
-                        "location_type" : "APPROXIMATE",
-                        "viewport" : {
-                            "northeast" : {
-                                "lat" : 50.0680261,
-                                "lng" : 14.477242
-                            },
-                            "southwest" : {
-                                "lat" : 50.0216708,
-                                "lng" : 14.4226236
-                            }
-                        }
-                    },
-                    "place_id" : "ChIJEQAOS0WRC0cRmJYjXaCxvic",
-                    "types" : [ "postal_town" ]
-                },
-                {
-                    "address_components" : [
-                        {
-                            "long_name" : "140 00",
-                            "short_name" : "140 00",
-                            "types" : [ "postal_code" ]
-                        },
-                        {
-                            "long_name" : "Praha 4",
-                            "short_name" : "Praha 4",
-                            "types" : [ "political", "sublocality", "sublocality_level_1" ]
-                        },
-                        {
-                            "long_name" : "Praha",
-                            "short_name" : "Praha",
-                            "types" : [ "locality", "political" ]
-                        },
-                        {
-                            "long_name" : "Česko",
-                            "short_name" : "CZ",
-                            "types" : [ "country", "political" ]
-                        }
-                    ],
-                    "formatted_address" : "140 00 Praha-Praha 4, Česko",
-                    "geometry" : {
-                        "bounds" : {
-                            "northeast" : {
-                                "lat" : 50.0680261,
-                                "lng" : 14.477242
-                            },
-                            "southwest" : {
-                                "lat" : 50.0216708,
-                                "lng" : 14.4226236
-                            }
-                        },
-                        "location" : {
-                            "lat" : 50.041463,
-                            "lng" : 14.4429612
-                        },
-                        "location_type" : "APPROXIMATE",
-                        "viewport" : {
-                            "northeast" : {
-                                "lat" : 50.0680261,
-                                "lng" : 14.477242
-                            },
-                            "southwest" : {
-                                "lat" : 50.0216708,
-                                "lng" : 14.4226236
-                            }
-                        }
-                    },
-                    "place_id" : "ChIJe1crwfKTC0cRIAljmBKvABw",
-                    "types" : [ "postal_code" ]
-                },
-                {
-                    "address_components" : [
-                        {
-                            "long_name" : "Hlavní město Praha",
-                            "short_name" : "Hlavní město Praha",
-                            "types" : [ "administrative_area_level_2", "political" ]
-                        },
-                        {
-                            "long_name" : "Hlavní město Praha",
-                            "short_name" : "Hlavní město Praha",
-                            "types" : [ "administrative_area_level_1", "political" ]
-                        },
-                        {
-                            "long_name" : "Česko",
-                            "short_name" : "CZ",
-                            "types" : [ "country", "political" ]
-                        }
-                    ],
-                    "formatted_address" : "Hlavní město Praha, Česko",
-                    "geometry" : {
-                        "bounds" : {
-                            "northeast" : {
-                                "lat" : 50.177403,
-                                "lng" : 14.7067945
-                            },
-                            "southwest" : {
-                                "lat" : 49.94193629999999,
-                                "lng" : 14.2244533
-                            }
-                        },
-                        "location" : {
-                            "lat" : 50.0599268,
-                            "lng" : 14.5039935
-                        },
-                        "location_type" : "APPROXIMATE",
-                        "viewport" : {
-                            "northeast" : {
-                                "lat" : 50.177403,
-                                "lng" : 14.7067945
-                            },
-                            "southwest" : {
-                                "lat" : 49.94193629999999,
-                                "lng" : 14.2244533
-                            }
-                        }
-                    },
-                    "place_id" : "ChIJi3lwCZyTC0cRAKkUZg-vAAM",
-                    "types" : [ "administrative_area_level_2", "political" ]
-                },
-                {
-                    "address_components" : [
-                        {
-                            "long_name" : "Hlavní město Praha",
-                            "short_name" : "Hlavní město Praha",
-                            "types" : [ "administrative_area_level_1", "political" ]
-                        },
-                        {
-                            "long_name" : "Česko",
-                            "short_name" : "CZ",
-                            "types" : [ "country", "political" ]
-                        }
-                    ],
-                    "formatted_address" : "Hlavní město Praha, Česko",
-                    "geometry" : {
-                        "bounds" : {
-                            "northeast" : {
-                                "lat" : 50.177403,
-                                "lng" : 14.7067945
-                            },
-                            "southwest" : {
-                                "lat" : 49.94193629999999,
-                                "lng" : 14.2244533
-                            }
-                        },
-                        "location" : {
-                            "lat" : 50.0599268,
-                            "lng" : 14.5039935
-                        },
-                        "location_type" : "APPROXIMATE",
-                        "viewport" : {
-                            "northeast" : {
-                                "lat" : 50.177403,
-                                "lng" : 14.7067945
-                            },
-                            "southwest" : {
-                                "lat" : 49.94193629999999,
-                                "lng" : 14.2244533
-                            }
-                        }
-                    },
-                    "place_id" : "ChIJi3lwCZyTC0cRIKgUZg-vAAE",
-                    "types" : [ "administrative_area_level_1", "political" ]
-                },
-                {
-                    "address_components" : [
-                        {
-                            "long_name" : "Česko",
-                            "short_name" : "CZ",
-                            "types" : [ "country", "political" ]
-                        }
-                    ],
-                    "formatted_address" : "Česko",
-                    "geometry" : {
-                        "bounds" : {
-                            "northeast" : {
-                                "lat" : 51.0557185,
-                                "lng" : 18.8592361
-                            },
-                            "southwest" : {
-                                "lat" : 48.5518081,
-                                "lng" : 12.090589
-                            }
-                        },
-                        "location" : {
-                            "lat" : 49.81749199999999,
-                            "lng" : 15.472962
-                        },
-                        "location_type" : "APPROXIMATE",
-                        "viewport" : {
-                            "northeast" : {
-                                "lat" : 51.0556786,
-                                "lng" : 18.8592361
-                            },
-                            "southwest" : {
-                                "lat" : 48.5518081,
-                                "lng" : 12.090589
-                            }
-                        }
-                    },
-                    "place_id" : "ChIJQ4Ld14-UC0cRb1jb03UcZvg",
-                    "types" : [ "country", "political" ]
-                }
-            ],
-            "status" : "OK"
-        };
-        var address = collectAddress(result.results[0].address_components, ["neighborhood", "sublocality", "locality"]);
-        resolve(address);
-        return;
         $.ajax({
             url: 'https://maps.googleapis.com/maps/api/geocode/json',
             method: 'GET',
