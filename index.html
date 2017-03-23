@@ -88,6 +88,10 @@
         display: none;
     }
 
+    .visible {
+        display: inline-block;
+    }
+
     .search_invisible {
         display: none;
     }
@@ -108,7 +112,6 @@
     }
 
     .alarm_outer {
-        display: inline-block;
     }
 
     .alarm_location {
@@ -390,7 +393,7 @@
 <body>
 <div id="components" class="invisible">
     <div class="alarm_component">
-        <div id="alarm_running" class="invisible">
+        <div class="alarm_running invisible">
             <div class="running" style="height: 150px;">
                 <i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"></i>
             </div>
@@ -433,32 +436,37 @@
                     </div>
                 </div>
             </div>
-            <div class="swiper-slide slide1">
+            <div id="slide1" class="swiper-slide">
                 <div id="header1" class="slide_header">
                     <div id="alarm1"></div>
                 </div>
                 <div class="slide_body">
-                    <div class="chart_title">Předpověď UV-Indexu: Modřany, Praha 12</div>
-                    <canvas id="uv_prediction"></canvas>
-                    <div class="padl">
-                        Upozornění:
-                        <div class="padt padb" style="display: flex; justify-content: space-between;">
-                            <div class="good alarm_toggle">1</div>
-                            <div class="good alarm_toggle">2</div>
-                            <div class="satisfactory alarm_toggle">3</div>
-                            <div class="satisfactory alarm_toggle">4</div>
-                            <div class="satisfactory alarm_toggle">5</div>
-                            <div class="acceptable alarm_toggle">6</div>
-                            <div class="acceptable alarm_toggle">7</div>
-                            <div class="bad alarm_toggle">8</div>
-                            <div class="bad alarm_toggle">9</div>
-                            <div class="bad">10</div>
-                            <div class="very_bad">11</div>
-                        </div>
+                    <div id="uv_running" class="running">
+                        <i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"></i>
                     </div>
+                    <div class="uv_outer invisible">
+                        <div class="chart_title">Předpověď UV-Indexu: <span class="location_name"></span></div>
+                        <canvas id="uv_prediction"></canvas>
+                        <div class="padl">
+                            Upozornění:
+                            <div class="padt padb" style="display: flex; justify-content: space-between;">
+                                <div class="good alarm_toggle">1</div>
+                                <div class="good alarm_toggle">2</div>
+                                <div class="satisfactory alarm_toggle">3</div>
+                                <div class="satisfactory alarm_toggle">4</div>
+                                <div class="satisfactory alarm_toggle">5</div>
+                                <div class="acceptable alarm_toggle">6</div>
+                                <div class="acceptable alarm_toggle">7</div>
+                                <div class="bad alarm_toggle">8</div>
+                                <div class="bad alarm_toggle">9</div>
+                                <div class="bad">10</div>
+                                <div class="very_bad">11</div>
+                            </div>
+                        </div>
 
-                    <div class="chart_title">On-line měření UV-Indexu<i id="time_spin1" class="fa fa-refresh fa-fw"></i></div>
-                    <canvas id="uv_online"></canvas>
+                        <div class="chart_title">On-line měření UV-Indexu<i id="time_spin1" class="fa fa-refresh fa-fw"></i></div>
+                        <canvas id="uv_online"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -539,7 +547,7 @@
         <div class="actions">
             <div id="location" class="location action">
                 <i class="fa fa-crosshairs" aria-hidden="true"></i>
-                <span id="location_name">Modřany, Praha 12</span>
+                <span class="location_name">Modřany, Praha 12</span>
             </div>
             <div class="menu">
                 <div id="menu_items" class="menu_items invisible">

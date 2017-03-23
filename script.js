@@ -25,6 +25,9 @@ var backNavigation;
 var exitPending = false;
 var exitPendingId = 0;
 
+var uvPrediction;
+var uvPredictionChart;
+
 // structural elements
 var main_page;
 
@@ -87,6 +90,102 @@ var colorIndex = [
     "#671F20"
 ];
 
+var uv_idx = [
+    "good",
+    "satisfactory",
+    "acceptable",
+    "bad",
+    "very_bad"
+];
+
+var uvLabel = {
+    "good": "Nízký",
+    "satisfactory": "Střední",
+    "acceptable": "Vysoký",
+    "bad": "Velmi vysoký",
+    "very_bad": "Extrémní"
+};
+
+function uvIndex(value) {
+    var idx = Math.round(value);
+    if (idx <= 2) {
+        return 0;
+    } else if (idx <= 5) {
+        return 1;
+    } else if (idx <= 7) {
+        return 2;
+    } else if (idx <= 10) {
+        return 3;
+    } else {
+        return 4;
+    }
+}
+
+function setUvPrediction(prediction) {
+    uvPrediction = prediction;
+
+    $("#uv_running").remove();
+    $("#alarm1").find(".alarm_running").removeClass("invisible");
+    $("#slide1").find(".uv_outer").removeClass("invisible");
+
+    if (typeof uvPredictionChart !== "undefined") {
+        uvPredictionChart.destroy();
+    }
+
+    var options = {
+        legend: {
+            display: false
+        },
+        scales: {
+            xAxes: [{
+                scaleLabel: {
+                    display: true,
+                    labelString: "UV-Index",
+                    fontSize: 36
+                },
+                ticks: {
+                    fontSize: 30,
+                    beginAtZero:true,
+                    stepSize: 1,
+                    suggestedMax: 11
+                }
+            }],
+            yAxes: [{
+                ticks: {
+                    fontSize: 30
+                }
+            }]
+        }
+    };
+
+    var currentTime = new Date().getTime();
+
+    function dateStr(n) {
+        var date = new Date(currentTime + n * 86400000);
+        return date.getDate() + "." + (date.getMonth() + 1) + ".";
+    }
+
+    var labels = ["dnes", "zítra", dateStr(2), dateStr(3), dateStr(4), dateStr(5)];
+    var background = prediction.map(function (value) {
+        return colorIndex[uvIndex(value) + 3];
+    });
+    uvPredictionChart = new Chart($("#uv_prediction"), {
+        type: "horizontalBar",
+        data: {
+            labels: labels,
+            datasets: [{
+                data: uvPrediction,
+                borderColor: ["#FFFFFF"],
+                borderWidth: [4],
+                backgroundColor: background
+            }]
+        },
+        options: options
+    });
+
+    displayUvPredictionAlarm();
+}
+
 function loadPosition(store) {
     if (navigator.geolocation) {
         console.log('Retrieving current position');
@@ -111,6 +210,9 @@ function setPosition(position, store) {
         // position difference is more than negligible, update distance (prevent flicker otherwise)
         myLocationJitter = myLocation.coords;
         recalculateDistance();
+
+        // reload UV index prediction
+        loadUvPrediction();
     }
     if (store) {
         storeCurrentPlace();
@@ -121,7 +223,7 @@ function setPosition(position, store) {
 function displayLocation() {
     if (typeof myLocation !== 'undefined') {
         loadLocationName(myLocation.coords.latitude, myLocation.coords.longitude).then(function (name) {
-            $("#location_name").text(name);
+            $(".location_name").text(name);
         });
     }
 }
@@ -137,10 +239,7 @@ function initializeComponents() {
     var alarmComponent = components.find(".alarm_component");
     initializeAlarm($("#alarm0"), alarmComponent, function () {
         if (typeof myAlarm !== 'undefined' && typeof myAlarm.code !== 'undefined') {
-            updateAlarm({
-                token: myToken,
-                remove: true
-            });
+            removeEmissionAlarm();
         }
         return false;
     });
@@ -245,6 +344,7 @@ function initialize() {
         if ("scrollRestoration" in history) {
             history.scrollRestoration = "manual";
         }
+        // TODO: applicable to either page
         // make sure "back" does not close the window
         history.pushState("", document.title, window.location.pathname + window.location.search);
         $(window).on('popstate', function() {
@@ -1090,11 +1190,7 @@ function addAlarmPanelToDetail(stationCode, detail) {
                     } else {
                         targetLevel = level;
                     }
-                    updateAlarm({
-                        token: myToken,
-                        code: stationCode,
-                        level: targetLevel
-                    });
+                    updateEmissionAlarm(stationCode, targetLevel);
                     if (level !== 1 && level !== 6) {
                         alarmToggle.toggleClass("quality_improvement");
                     }
@@ -1106,11 +1202,7 @@ function addAlarmPanelToDetail(stationCode, detail) {
                     alarmToggle.addClass("quality_improvement");
                 }
                 alarmToggle.click(function () {
-                    updateAlarm({
-                        token: myToken,
-                        code: stationCode,
-                        level: level
-                    });
+                    updateEmissionAlarm(stationCode, level);
                     return false;
                 });
             }
@@ -1133,6 +1225,7 @@ function setMeta(meta) {
     $("#menu_expander").removeClass("invisible");
     $("#location").removeClass("invisible");
     $("#stations_running").remove();
+    showAlarmProgress($("#alarm0"));
     var slide = $("#slide0");
     slide.find(".stations_outer").removeClass("invisible");
     updateSlideHeight((slide.find(".slide_body")));
@@ -1268,36 +1361,41 @@ function setFavoriteIcon(code) {
     }
 }
 
+function showAlarmProgress(alarm) {
+    alarm.find(".alarm_running").removeClass("invisible");
+}
+
 function setToken(token) {
 
-    function hideAlarmProgress() {
-        $("#alarm_running").remove();
-        $("#alarm_icon").toggleClass("alarm_icon invisible");
-        $("#alarm_location_outer").toggleClass("alarm_location invisible");
+    function removeAlarmProgress() {
+        var alarms = $(".alarm_component");
+        alarms.find(".alarm_running").remove();
+        alarms.find(".alarm_outer").removeClass("invisible").addClass("visible");
     }
 
     if (token !== myToken) {
         myToken = token;
         if (token !== false) {
-            loadAlarm().then(hideAlarmProgress);
+            loadAlarm().then(removeAlarmProgress);
             addAlarmPanelToDetails();
         } else {
             setAlarm(false);
-            hideAlarmProgress();
+            removeAlarmProgress();
         }
     }
 }
 
 function setAlarm(alarm) {
     myAlarm = alarm;
-    displayEmissionAlarm();
+    displayAlarms();
 }
 
-function displayAlarm(alarm, ready, active, stationName, valueText, valueClass, levelText, levelNumber, levelClass, levelImprovement, direction) {
-    if (!ready) {
-        return;
-    }
+function displayAlarms() {
+    displayEmissionAlarm();
+    displayUvPredictionAlarm();
+}
 
+function displayAlarm(alarm, active, stationName, valueText, valueClass, levelText, levelNumber, levelClass, levelImprovement, direction) {
     var alarmOuterElems = alarm.find(".alarm_outer");
     var alarmLevel = alarm.find(".alarm_level");
     var alarmDirection = alarm.find(".alarm_direction");
@@ -1306,7 +1404,7 @@ function displayAlarm(alarm, ready, active, stationName, valueText, valueClass, 
     var alarmLevelNumber = alarm.find(".alarm_level_number");
 
     // make the alarm visible
-    alarmOuterElems.removeClass("invisible");
+    alarmOuterElems.removeClass("invisible").addClass("visible");
 
     if (active) {
         alarmOuterElems.removeClass("inactive");
@@ -1324,16 +1422,35 @@ function displayAlarm(alarm, ready, active, stationName, valueText, valueClass, 
     alarmDirection.text(direction);
 }
 
+function displayUvPredictionAlarm() {
+    var alarm = $("#alarm1");
+
+    if (typeof uvPrediction === "undefined" || typeof myAlarm === "undefined") {
+        return;
+    }
+
+    if (myAlarm === false || typeof myAlarm.uvLevel === "undefined") {
+        displayAlarm(alarm, false, "", "", "", "nenastaveno", "", "", false, "");
+        return;
+    }
+
+    var valueClass = uv_idx[uvIndex(uvPrediction[0])];
+    var valueText = uvLabel[valueClass] + "-" + Math.round(uvPrediction[0]);
+    var levelClass = uv_idx[uvIndex(myAlarm.uvLevel)];
+    var levelText = uvLabel[levelClass] + "-" + myAlarm.uvLevel;
+
+    displayAlarm(alarm, true, myAlarm.uvLocation, valueText, valueClass, levelText, myAlarm.uvLevel, levelClass, "", "a horší");
+}
+
 function displayEmissionAlarm() {
     var alarm = $("#alarm0");
 
     if (typeof myStations === "undefined" || typeof myAlarm === 'undefined') {
-        displayAlarm(alarm, false, false, "", "", "", "", "", "", false, "");
         return;
     }
 
     if (myAlarm === false || typeof myAlarm.code === "undefined") {
-        displayAlarm(alarm, true, false, "", "", "", "nenastaveno", "", "", false, "");
+        displayAlarm(alarm, false, "", "", "", "nenastaveno", "", "", false, "");
         return;
     }
 
@@ -1355,7 +1472,7 @@ function displayEmissionAlarm() {
         direction = " a lepší";
     }
 
-    displayAlarm(alarm, true, true, stationName, valueText, valueClass, levelText, Math.abs(myAlarm.level), levelClass, levelImprovement, direction);
+    displayAlarm(alarm, true, stationName, valueText, valueClass, levelText, Math.abs(myAlarm.level), levelClass, levelImprovement, direction);
 }
 
 const messaging = firebase.messaging();
@@ -1425,29 +1542,43 @@ function blink(headerInner, qualityClass, n) {
     }, 100);
 }
 
-function updateAlarm(alarm) {
+function removeEmissionAlarm() {
+    // TODO: refactor alarm structure & lambda
+    delete myAlarm.code;
+    delete myAlarm.level;
+    myAlarm.remove = true;
+    updateAlarm();
+    displayEmissionAlarm();
+}
+
+function updateEmissionAlarm(code, level) {
+    myAlarm.code = code;
+    myAlarm.level = level;
+    delete myAlarm.remove;
+    updateAlarm();
+    displayEmissionAlarm();
+}
+
+function updateAlarm() {
+    myAlarm.token = myToken;
     // waiting for the server call makes the app look a little bit unresponsive, let's assume the operation succeeds
-    var oldAlarm = myAlarm;
-    setAlarm(alarm);
     $.ajax({
         url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/alarm',
         method: 'POST',
-        data: JSON.stringify(alarm),
+        data: JSON.stringify(myAlarm),
         contentType: 'application/json',
         headers: {
             'x-api-key': 'api_key_public_access'
         }
-    }).fail(function () {
+    }).fail(function (err) {
+        console.error("Unablet to set alarm: ", myAlarm, err);
         // revert to previous setting if server didn't succeed
-        setAlarm(oldAlarm);
+        // TODO: reload from server and show
     });
 }
 
 function loadAlarm() {
     return new Promise(function (resolve, reject) {
-        setAlarm({});
-        resolve({});
-        return;
         console.log('Retrieving alarm from the server');
         $.ajax({
             url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/alarm',
@@ -1852,6 +1983,30 @@ function loadHistory(station, from, to, precisionFunc, type, multipleDays) {
             resolve(typeSelected);
         }).catch(function (err) {
             console.error("Failed to retrieve station history: ", err);
+            reject(err);
+        });
+    });
+}
+
+function loadUvPrediction() {
+    console.log("Retrieving UV prediction data");
+    return new Promise(function (resolve, reject) {
+        $.ajax({
+            url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/uv/prediction',
+            method: 'GET',
+            headers: {
+                'x-api-key': 'api_key_public_access'
+            },
+            data: {
+                lat: myLocation.coords.latitude,
+                lon: myLocation.coords.longitude
+            }
+        }).done(function (prediction) {
+            console.log("UV index prediction: ", prediction);
+            setUvPrediction(prediction);
+            resolve(prediction);
+        }).catch(function (err) {
+            console.error("Failed to retrieve UV index prediction: ", err);
             reject(err);
         });
     });
