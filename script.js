@@ -25,6 +25,7 @@ var userAction;
 var backNavigation;
 var exitPending = false;
 var exitPendingId = 0;
+var swiper;
 
 var uvPrediction;
 var uvPredictionChart;
@@ -211,6 +212,13 @@ function setUvOnline(uvData) {
         uvOnlineChart.destroy();
     }
 
+    if (typeof uvData.data === "undefined") {
+        $("#uv_online_nodata").removeClass("invisible");
+        return;
+    }
+
+    $("#uv_online_nodata").addClass("invisible");
+
     var tooltipIndex;
     var options = {
         tooltips: {
@@ -394,7 +402,7 @@ function initializeSwiper() {
         bulletClass: 'page',
         bulletActiveClass: 'page-active'
     };
-    new Swiper('.swiper-container', options);
+    swiper = new Swiper('.swiper-container', options);
 }
 
 function initialize() {
@@ -492,6 +500,11 @@ function initialize() {
     loadUvOnline();
 
     $("#time_spin").click(reload);
+
+    var uvOnlineSync = $("#uv_online_sync");
+    uvOnlineSync.click(function () {
+        return onSync(uvOnlineSync, loadUvOnline);
+    });
 
     installPreventPullToReload();
 
@@ -1016,38 +1029,47 @@ function installPreventPullToReload() {
     window.addEventListener('touchmove', touchmoveHandler, {passive: false});
 }
 
-function reload() {
-    var timeSpin = $("#time_spin");
-
-    if (main_page.hasClass("invisible")) {
-        console.log('Reload discarded in history view');
-        return;
-    }
-    
-    if (timeSpin.hasClass("fa-spin")) {
+function onSync(element, callback) {
+    if (element.hasClass("fa-spin")) {
         console.log('Reload discarded another reload running');
         return;
     }
 
-    if (timeSpin.hasClass("inactive")) {
+    if (element.hasClass("inactive")) {
         console.log('Reload discarded due to quiet period');
         return;
     }
 
-    if (typeof myLocation === "undefined" || myLocation.custom !== true) {
-        // reload position only if custom coordinates are not set
-        loadPosition(false);
+    element.addClass("fa-spin");
+    callback().then(function() {
+        element.removeClass("fa-spin");
+        element.addClass("inactive");
+        window.setTimeout(function () {
+            element.removeClass("inactive");
+        }, 60000);
+    });
+}
+
+function reload() {
+    if (main_page.hasClass("invisible")) {
+        console.log("Reload discarded outside main page");
+        return;
     }
 
-    loadAlarm();
+    if (swiper.activeIndex !== 0) {
+        console.log("Reload discarded outside stations view");
+        return;
+    }
 
-    timeSpin.addClass("fa-spin");
-    loadMeta().then(function (done, fail) {
-        timeSpin.removeClass("fa-spin");
-        timeSpin.addClass("inactive");
-        window.setTimeout(function () {
-            timeSpin.removeClass("inactive");
-        }, 60000);
+    onSync($("#time_spin"), function() {
+        if (typeof myLocation === "undefined" || myLocation.custom !== true) {
+            // reload position only if custom coordinates are not set
+            loadPosition(false);
+        }
+        return Promise.all([
+            loadAlarm(),
+            loadMeta()
+        ]);
     });
 }
 
@@ -2173,7 +2195,8 @@ function loadUvOnline() {
             resolve(onlineData);
         }).catch(function (err) {
             console.error("Failed to retrieve UV online data: ", err);
-            reject(err);
+            setUvOnline({});
+            resolve({});
         });
     });
 }
