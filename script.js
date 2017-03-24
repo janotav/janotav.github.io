@@ -400,7 +400,20 @@ function initializeSwiper() {
             return pager[index];
         },
         bulletClass: 'page',
-        bulletActiveClass: 'page-active'
+        bulletActiveClass: 'page-active',
+
+        onTransitionStart: function () {
+            closeUserAction();
+            disablePendingExit();
+        },
+        onTransitionEnd: function () {
+            // when needed, menu items should be made context-aware
+            if (swiper.activeIndex === 0) {
+                $("#menu_expander").removeClass("invisible");
+            } else {
+                $("#menu_expander").addClass("invisible");
+            }
+        }
     };
     swiper = new Swiper('.swiper-container', options);
 }
@@ -1371,9 +1384,8 @@ function setMeta(meta) {
     }
 
     myMeta = meta;
-    
+
     $("#time_outer").removeClass("invisible");
-    $("#menu_expander").removeClass("invisible");
     $("#location").removeClass("invisible");
     $("#stations_running").remove();
     showAlarmProgress($("#alarm0"));
