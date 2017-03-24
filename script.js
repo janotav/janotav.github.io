@@ -456,45 +456,48 @@ function initialize() {
         navigator.serviceWorker.addEventListener('message', notificationHandler);
     }
 
+    var locationHash = location.hash;
+
+    // make sure that we don't lose scroll position on "back"
+    if ("scrollRestoration" in history) {
+        history.scrollRestoration = "manual";
+    }
+
+    // make sure "back" does not close the window
+    history.pushState("", document.title, window.location.pathname + window.location.search);
+    $(window).on('popstate', function() {
+        if (!closeUserAction()) {
+            // no outstanding action on current page
+            if (typeof backNavigation !== "undefined") {
+                // navigate to main page
+                backNavigation();
+                backNavigation = undefined;
+            } else {
+                // back on homepage with no outstanding action
+                console.log("Pending exit");
+                exitPending = true;
+                var myExit = ++exitPendingId;
+                setTimeout(function () {
+                    if (exitPending && myExit == exitPendingId) {
+                        console.log("Pending exit timed out, pushing state to history");
+                        exitPending = false;
+                        history.pushState("", document.title, window.location.pathname + window.location.search);
+                    }
+                }, 1000);
+                return;
+            }
+        }
+        console.log("Pushing state to history");
+        history.pushState("", document.title, window.location.pathname + window.location.search);
+    });
+
     loadMeta().then(function () {
-        if (location.hash) {
-            var stationCode = location.hash.substring(1);
+        if (locationHash) {
+            var stationCode = locationHash.substring(1);
             if (myStations[stationCode].name) {
                 toggleDetail(stationCode, true);
             }
         }
-        // make sure that we don't lose scroll position on "back"
-        if ("scrollRestoration" in history) {
-            history.scrollRestoration = "manual";
-        }
-        // TODO: applicable to either page
-        // make sure "back" does not close the window
-        history.pushState("", document.title, window.location.pathname + window.location.search);
-        $(window).on('popstate', function() {
-            if (!closeUserAction()) {
-                // no outstanding action on current page
-                if (typeof backNavigation !== "undefined") {
-                    // navigate to main page
-                    backNavigation();
-                    backNavigation = undefined;
-                } else {
-                    // back on homepage with no outstanding action
-                    console.log("Pending exit");
-                    exitPending = true;
-                    var myExit = ++exitPendingId;
-                    setTimeout(function () {
-                        if (exitPending && myExit == exitPendingId) {
-                            console.log("Pending exit timed out, pushing state to history");
-                            exitPending = false;
-                            history.pushState("", document.title, window.location.pathname + window.location.search);
-                        }
-                    }, 1000);
-                    return;
-                }
-            }
-            console.log("Pushing state to history");
-            history.pushState("", document.title, window.location.pathname + window.location.search);
-        });
     });
 
     loadUvOnline();
