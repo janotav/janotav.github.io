@@ -1673,7 +1673,7 @@ function blink(headerInner, qualityClass, n) {
 
 function removeEmissionAlarm() {
     delete myAlarm.emission;
-    updateAlarm();
+    updateAlarm({token: myToken, emission: {}});
     displayEmissionAlarm();
 }
 
@@ -1682,13 +1682,13 @@ function updateEmissionAlarm(code, level) {
         code: code,
         level: level
     };
-    updateAlarm();
+    updateAlarm({token: myToken, emission: myAlarm.emission});
     displayEmissionAlarm();
 }
 
 function removeUvPredictionAlarm() {
     delete myAlarm.uv;
-    updateAlarm();
+    updateAlarm({token: myToken, uv: {}});
     displayUvPredictionAlarm();
 }
 
@@ -1699,23 +1699,22 @@ function updateUvPredictionAlarm(level, name) {
         lon: myLocation.coords.longitude,
         name: name
     };
-    updateAlarm();
+    updateAlarm({token: myToken, uv: myAlarm.uv});
     displayUvPredictionAlarm();
 }
 
-function updateAlarm() {
-    myAlarm.token = myToken;
+function updateAlarm(alarm) {
     // waiting for the server call makes the app look a little bit unresponsive, let's assume the operation succeeds
     $.ajax({
         url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/alarm2',
         method: 'POST',
-        data: JSON.stringify(myAlarm),
+        data: JSON.stringify(alarm),
         contentType: 'application/json',
         headers: {
             'x-api-key': 'api_key_public_access'
         }
     }).fail(function (err) {
-        console.error("Unablet to set alarm: ", myAlarm, err);
+        console.error("Unablet to set alarm: ", alarm, err);
         // revert to previous setting if server didn't succeed
         loadAlarm();
     });
