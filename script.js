@@ -249,6 +249,7 @@ function setUvOnline(uvData) {
                 ticks: {
                     fontSize: 30,
                     beginAtZero:true,
+                    autoSkip: false
                 }
             }],
             yAxes: [{
