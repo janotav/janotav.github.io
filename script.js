@@ -1580,7 +1580,6 @@ function setToken(token) {
     function removeAlarmProgress() {
         var alarms = $(".alarm_component");
         alarms.find(".alarm_running").remove();
-        alarms.find(".alarm_outer").removeClass("invisible").addClass("visible");
     }
 
     if (token !== myToken) {
@@ -2266,20 +2265,20 @@ function loadUvOnline() {
 function loadMeta() {
     console.log('Retrieving meta data from the server');
     return new Promise(function (resolve, reject) {
-        $.ajax({
-            url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/summary',
-            method: 'GET',
-            headers: {
-                'x-api-key': 'api_key_public_access'
-            }
-        }).done(function (meta) {
-            console.log('Current server meta summary: ', meta);
-            setMeta(meta);
-            resolve(meta);
-        }).catch(function (err) {
-            console.error('Failed to retrieve meta summary: ', err);
-            reject(err);
-        });
+            $.ajax({
+                url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/summary',
+                method: 'GET',
+                headers: {
+                    'x-api-key': 'api_key_public_access'
+                }
+            }).done(function (meta) {
+                console.log('Current server meta summary: ', meta);
+                setMeta(meta);
+                resolve(meta);
+            }).catch(function (err) {
+                console.error('Failed to retrieve meta summary: ', err);
+                reject(err);
+            });
     });
 }
 
