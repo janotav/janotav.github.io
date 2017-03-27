@@ -1442,7 +1442,7 @@ function setMeta(meta) {
     myStations = {};
 
     var date = parseUtcDate(meta.date);
-    $("#date").text(date.toLocaleString("cs-CZ"));
+    $("#time").text(date.toLocaleString("cs-CZ"));
 
     var slide = $("#slide0");
     slide.find(".stations_outer").removeClass("invisible");
