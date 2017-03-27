@@ -1436,9 +1436,6 @@ function setMeta(meta) {
     $("#location").removeClass("invisible");
     $("#stations_running").remove();
     showAlarmProgress($("#alarm0"));
-    var slide = $("#slide0");
-    slide.find(".stations_outer").removeClass("invisible");
-    updateSlideHeight(slide.find(".slide_body"));
 
     var stations = $("#stations");
     stations.empty();
@@ -1446,6 +1443,10 @@ function setMeta(meta) {
 
     var date = parseUtcDate(meta.date);
     $("#date").text(date.toLocaleString("cs-CZ"));
+
+    var slide = $("#slide0");
+    slide.find(".stations_outer").removeClass("invisible");
+    updateSlideHeight(slide.find(".slide_body"));
 
     var regionNames = Object.keys(meta.regions);
     regionNames.forEach(function (regionName) {
