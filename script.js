@@ -26,6 +26,7 @@ var backNavigation;
 var exitPending = false;
 var exitPendingId = 0;
 var swiper;
+var ignoreSlideRestore;
 
 var uvPrediction;
 var uvPredictionChart;
@@ -403,6 +404,7 @@ function initializeSwiper() {
         bulletActiveClass: 'page-active',
 
         onTransitionStart: function () {
+            ignoreSlideRestore = true;
             closeUserAction();
             disablePendingExit();
         },
@@ -413,6 +415,7 @@ function initializeSwiper() {
             } else {
                 $("#menu_expander").addClass("invisible");
             }
+            storeSlide();
         }
     };
     swiper = new Swiper('.swiper-container', options);
@@ -427,12 +430,13 @@ function initialize() {
     if ('indexedDB' in window) {
         var idb = window.indexedDB;
 
-        var request = idb.open("BuenosAires", 4);
+        var request = idb.open("BuenosAires", 5);
         request.onsuccess = function (event) {
             db = event.target.result;
             restorePlaceHistory();
             restoreCurrentPlace();
             restoreFavorites();
+            restoreSlide();
         };
         request.onupgradeneeded = function (event) {
             console.info("IDB schema upgrade");
@@ -447,6 +451,11 @@ function initialize() {
             if (!db.objectStoreNames.contains("favorites")) {
                 var favoriteStore = db.createObjectStore("favorites", { keyPath: "id" });
                 favoriteStore.add({id: "favorites", items: {}});
+            }
+
+            if (!db.objectStoreNames.contains("settings")) {
+                var settingsStore = db.createObjectStore("settings", { keyPath: "id" });
+                settingsStore.add({id: "lastPage", value: 0});
             }
         };
         request.onerror = function (event) {
@@ -469,7 +478,15 @@ function initialize() {
         navigator.serviceWorker.addEventListener('message', notificationHandler);
     }
 
-    var locationHash = location.hash;
+    var locationHash;
+    if (location.hash) {
+        ignoreSlideRestore = true;
+        if (location.hash === "#uv") {
+            swiper.slideTo(1);
+        } else {
+            locationHash = location.hash;
+        }
+    }
 
     // make sure that we don't lose scroll position on "back"
     if ("scrollRestoration" in history) {
@@ -883,6 +900,36 @@ function storeCurrentPlace() {
         };
         req.onerror = function (event) {
             console.error("Failed to write current position: ", event);
+        };
+    }
+}
+
+function restoreSlide() {
+    var tx = db.transaction(["settings"], "readonly", 1000);
+    var req = tx.objectStore("settings").get("lastPage");
+    req.onsuccess = function (event) {
+        if (!ignoreSlideRestore) {
+            swiper.slideTo(event.target.result.value);
+            console.log("Moved to lastPage");
+        } else {
+            console.log("Move to lastPage ignored");
+        }
+    };
+    req.onerror = function (event) {
+        console.error("Failed to restore lastPage", event);
+    };
+}
+
+function storeSlide() {
+    if (db) {
+        var lastPage = swiper.activeIndex;
+        var tx = db.transaction(["settings"], "readwrite", 1000);
+        var req = tx.objectStore("settings").put({id: "lastPage", value: lastPage});
+        req.onsuccess = function (event) {
+            console.log("Stored lastPage: ", lastPage);
+        };
+        req.onerror = function (event) {
+            console.error("Failed to store lastPage: ", event);
         };
     }
 }
