@@ -126,6 +126,13 @@ function uvIndex(value) {
     }
 }
 
+function updateSlideHeightInAWhile(slide) {
+    // trying to fix height not being calculated correctly sometimes by delaying the recalculation
+    setTimeout(function () {
+        updateSlideHeight(slide.find(".slide_body"));
+    }, 100);
+}
+
 function setUvPrediction(prediction) {
     uvPrediction = prediction;
 
@@ -133,9 +140,9 @@ function setUvPrediction(prediction) {
 
     $("#uv_running").remove();
     $("#alarm1").find(".alarm_running").removeClass("invisible");
-    var slide1 = $("#slide1");
-    slide1.find(".uv_outer").removeClass("invisible");
-    updateSlideHeight(slide1.find(".slide_body"));
+    var slide = $("#slide1")
+    slide.find(".uv_outer").removeClass("invisible");
+    updateSlideHeightInAWhile(slide);
 
     if (typeof uvPredictionChart !== "undefined") {
         uvPredictionChart.destroy();
@@ -1445,12 +1452,9 @@ function setMeta(meta) {
     var date = parseUtcDate(meta.date);
     $("#time").text(date.toLocaleString("cs-CZ"));
 
-    setTimeout(function () {
-        // trying to fix height not being calculated correctly sometimes
-        var slide = $("#slide0");
-        slide.find(".stations_outer").removeClass("invisible");
-        updateSlideHeight(slide.find(".slide_body"));
-    }, 100);
+    var slide = $("#slide0");
+    slide.find(".stations_outer").removeClass("invisible");
+    updateSlideHeightInAWhile(slide);
 
     var regionNames = Object.keys(meta.regions);
     regionNames.forEach(function (regionName) {
