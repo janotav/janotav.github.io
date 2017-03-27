@@ -1732,32 +1732,41 @@ messaging.onTokenRefresh(function() {
 function notificationHandler(payload) {
     console.log("Message received, reload alarm and meta", payload);
 
-    loadAlarm();
-    loadMeta().then(function () {
-        console.log('Load detail of the station in alarm');
-        toggleDetail(payload.data.stationCode, true);
-        foregroundAlarm(parseInt(payload.data.stationIdx));
-    });
+    if (typeof payload.data.stationCode !== "undefined") {
+        loadAlarm();
+        loadMeta().then(function () {
+            console.log('Load detail of the station in alarm');
+            swiper.slideTo(0);
+            toggleDetail(payload.data.stationCode, true);
+            var qualityClass = emission_idx[parseInt(payload.data.stationIdx) + 1];
+            foregroundAlarm($("#alarm0").find(".alarm_component"), qualityClass);
+        });
+    } else {
+        loadUvPrediction().then(function () {
+            console.log("UV prediction data reloaded");
+            swiper.slideTo(1);
+            var qualityClass = uv_idx[uvIndex(payload.data.prediction)];
+            foregroundAlarm($("#alarm1").find(".alarm_component"), qualityClass);
+        });
+    }
 }
 
 messaging.onMessage(notificationHandler);
 
-function foregroundAlarm(stationIdx) {
-    var qualityClass = emission_idx[stationIdx + 1];
-    var headerInner = $("#header_inner");
-    blink(headerInner, qualityClass, 3);
+function foregroundAlarm(alarmComponent, qualityClass) {
+    blink(alarmComponent, qualityClass, 3);
     if ("vibrate" in navigator) {
         navigator.vibrate([200, 200, 200]);
     }
 }
 
-function blink(headerInner, qualityClass, n) {
-    headerInner.addClass(qualityClass);
+function blink(alarmComponent, qualityClass, n) {
+    alarmComponent.addClass(qualityClass);
     setTimeout(function () {
-        headerInner.removeClass(qualityClass);
+        alarmComponent.removeClass(qualityClass);
         if (--n > 0) {
             setTimeout(function () {
-                blink(headerInner, qualityClass, n);
+                blink(alarmComponent, qualityClass, n);
             }, 100);
         }
     }, 100);
