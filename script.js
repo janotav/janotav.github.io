@@ -1444,9 +1444,12 @@ function setMeta(meta) {
     var date = parseUtcDate(meta.date);
     $("#time").text(date.toLocaleString("cs-CZ"));
 
-    var slide = $("#slide0");
-    slide.find(".stations_outer").removeClass("invisible");
-    updateSlideHeight(slide.find(".slide_body"));
+    setTimeout(function () {
+        // trying to fix height not being calculated correctly sometimes
+        var slide = $("#slide0");
+        slide.find(".stations_outer").removeClass("invisible");
+        updateSlideHeight(slide.find(".slide_body"));
+    }, 100);
 
     var regionNames = Object.keys(meta.regions);
     regionNames.forEach(function (regionName) {
