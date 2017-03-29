@@ -263,6 +263,7 @@ function setUvOnline(uvData) {
                 ticks: {
                     beginAtZero:true,
                     fontSize: 30,
+                    suggestedMax: 8
                 }
             }]
         }
@@ -302,12 +303,18 @@ function setUvOnline(uvData) {
 }
 
 function loadPosition(store) {
-    if (navigator.geolocation) {
-        console.log('Retrieving current position');
-        navigator.geolocation.getCurrentPosition(function (position) {
-            setPosition(position, store);
-        });
-    }
+    return new Promise(function (resolve, reject) {
+        if (navigator.geolocation) {
+            console.log('Retrieving current position');
+            navigator.geolocation.getCurrentPosition(function (position) {
+                // resolves to true if position (meaninfully) changed (jitter is ignored), to false otherwise
+                resolve(setPosition(position, store));
+            });
+        } else {
+            // position not changed
+            resolve(false);
+        }
+    });
 }
 
 function setLocationName(name) {
@@ -347,6 +354,7 @@ function setPosition(position, store) {
         storeCurrentPlace();
     }
     displayLocation();
+    return !jitter;
 }
 
 function displayLocation() {
@@ -540,11 +548,22 @@ function initialize() {
 
     loadUvOnline();
 
-    $("#time_spin").click(reload);
+    var timeSpin = $("#time_spin");
+    timeSpin.click(function () {
+        return onSync(timeSpin, 60000, loadStationsPage);
+    });
 
     var uvOnlineSync = $("#uv_online_sync");
     uvOnlineSync.click(function () {
-        return onSync(uvOnlineSync, loadUvOnline);
+        return onSync(uvOnlineSync, 60000, loadUvOnline);
+    });
+
+    var uvPredictionSync = $("#uv_prediction_sync");
+    uvPredictionSync.click(function () {
+        var today = new Date();
+        var now = today.getTime();
+        today.setHours(3, 0, 0, 0); // early in the morning - it's unclear how source handles date/TZ - this should give enough buffer
+        return onSync(uvPredictionSync, today.getTime() + 86400000 - now, loadUvPredictionPositionAndAlarm);
     });
 
     installPreventPullToReload();
@@ -1100,7 +1119,7 @@ function installPreventPullToReload() {
     window.addEventListener('touchmove', touchmoveHandler, {passive: false});
 }
 
-function onSync(element, callback) {
+function onSync(element, timeout, callback) {
     if (element.hasClass("fa-spin")) {
         console.log('Reload discarded another reload running');
         return;
@@ -1117,7 +1136,7 @@ function onSync(element, callback) {
         element.addClass("inactive");
         window.setTimeout(function () {
             element.removeClass("inactive");
-        }, 60000);
+        }, timeout);
     });
 }
 
@@ -1127,20 +1146,53 @@ function reload() {
         return;
     }
 
-    if (swiper.activeIndex !== 0) {
-        console.log("Reload discarded outside stations view");
-        return;
+    if (swiper.activeIndex === 0) {
+        console.log("Reload in stations view");
+        reloadStationsPage();
+    } else {
+        console.log("Reload in UV view");
+        reloadUvPage();
+    }
+}
+
+
+function reloadStationsPage() {
+    $("#time_spin").click();
+}
+
+function loadStationsPage() {
+    if (typeof myLocation === "undefined" || myLocation.custom !== true) {
+        // reload position only if custom coordinates are not set
+        loadPosition(false);
     }
 
-    onSync($("#time_spin"), function() {
+    return Promise.all([
+        loadAlarm(),
+        loadMeta()
+    ]);
+}
+
+function reloadUvPage() {
+    $("#uv_online_sync").click();
+    $("#uv_prediction_sync").click();
+}
+
+function loadUvPredictionPositionAndAlarm() {
+    var todo = [loadAlarm()];
+    return new Promise(function (resolve, reject) {
         if (typeof myLocation === "undefined" || myLocation.custom !== true) {
             // reload position only if custom coordinates are not set
-            loadPosition(false);
+            loadPosition(false).then(resolve);
+        } else {
+            resolve(false);
         }
-        return Promise.all([
-            loadAlarm(),
-            loadMeta()
-        ]);
+
+    }).then(function (positionChanged) {
+        if (!positionChanged) {
+            // if position changes UV prediction is loaded automatically
+            todo.push(loadUvPrediction());
+        }
+        return Promise.all(todo);
     });
 }
 
