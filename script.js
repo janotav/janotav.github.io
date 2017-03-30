@@ -437,8 +437,33 @@ function updateContextMenu() {
     }
 }
 
+function retrieveToken(isLoadAlarm) {
+    return messaging.requestPermission().then(function () {
+        return messaging.getToken()
+            .then(function(currentToken) {
+                console.log('Got token', currentToken);
+                setToken(currentToken, isLoadAlarm);
+            })
+            .catch(function(err) {
+                console.log('An error occurred while retrieving token. ', err);
+                setToken(false);
+            });
+    }).catch(function (err) {
+        console.log('Unable to get permission to notify.', err);
+        setToken(false);
+    });
+}
+
 function initialize() {
     main_page = $("#main_page");
+
+    if (Notification.permission === "granted") {
+        console.log("Messaging permission already granted");
+        retrieveToken(true);
+    } else {
+        console.log("Messaging permission currently not available");
+        setToken(false);
+    }
 
     initializeComponents();
     initializeSwiper();
@@ -1425,27 +1450,12 @@ function setDetail(pDetail) {
     });
     detail.append(historyDiv);
 
-    if (typeof myToken === 'undefined' || myToken === false) {
-        // token not ready or not supported, don't display panel
-        return;
-    }
     if (station.qualityClass === 'undetermined') {
         // station has no index, can't set alarms
         return;
     }
 
     addAlarmPanelToDetail(stationCode, detail);
-}
-
-function addAlarmPanelToDetails() {
-    if (typeof myStations !== 'undefined') {
-        Object.keys(myStations).forEach(function (stationCode) {
-            if (typeof myStations[stationCode].detail !== 'undefined') {
-                var detail = $("#" + stationCode + "_detail");
-                addAlarmPanelToDetail(stationCode, detail);
-            }
-        });
-    }
 }
 
 function addAlarmPanelToDetail(stationCode, detail) {
@@ -1679,7 +1689,7 @@ function showAlarmProgress(alarm) {
     alarm.find(".alarm_running").removeClass("invisible");
 }
 
-function setToken(token) {
+function setToken(token, isLoadAlarm) {
 
     function removeAlarmProgress() {
         var alarms = $(".alarm_component");
@@ -1688,11 +1698,10 @@ function setToken(token) {
 
     if (token !== myToken) {
         myToken = token;
-        if (token !== false) {
+        if (token !== false && isLoadAlarm) {
             loadAlarm().then(removeAlarmProgress);
-            addAlarmPanelToDetails();
         } else {
-            setAlarm(false);
+            setAlarm({});
             removeAlarmProgress();
         }
     }
@@ -1744,7 +1753,7 @@ function displayUvPredictionAlarm() {
 
     var uv = myAlarm.uv;
 
-    if (myAlarm === false || typeof uv === "undefined") {
+    if (typeof uv === "undefined") {
         displayAlarm(alarm, false, "", "", "", "nenastaveno", "", "", false, "");
         return;
     }
@@ -1765,7 +1774,7 @@ function displayEmissionAlarm() {
     }
 
     var emission = myAlarm.emission;
-    if (myAlarm === false || typeof emission === "undefined") {
+    if (typeof emission === "undefined") {
         displayAlarm(alarm, false, "", "", "", "nenastaveno", "", "", false, "");
         return;
     }
@@ -1793,31 +1802,11 @@ function displayEmissionAlarm() {
 
 const messaging = firebase.messaging();
 
-console.log('Asking for notification permission.');
-
-messaging.requestPermission()
-    .then(function() {
-        console.log('Notification permission granted.');
-
-        messaging.getToken()
-            .then(function(currentToken) {
-                console.log('Got token', currentToken);
-                    setToken(currentToken);
-            })
-            .catch(function(err) {
-                console.log('An error occurred while retrieving token. ', err);
-                setToken(false);
-            });
-    })
-    .catch(function(err) {
-        console.log('Unable to get permission to notify.', err);
-    });
-
 messaging.onTokenRefresh(function() {
     messaging.getToken()
         .then(function(refreshedToken) {
             console.log('Token refreshed', refreshedToken);
-            setToken(refreshedToken);
+            setToken(refreshedToken, true);
         })
         .catch(function(err) {
             console.log('Unable to retrieve refreshed token ', err);
@@ -1868,6 +1857,16 @@ function blink(alarmComponent, qualityClass, n) {
 }
 
 function updateAlarmHandler(type, alarm, displayFunc) {
+    if (myToken === false) {
+        retrieveToken(false).then(function () {
+            if (myToken === false) {
+                addMessage("Přístup k upozornění byl odepřen, povolte přístup v nastavení vašeho prohlížeče");
+            } else {
+                updateAlarmHandler(type, alarm, displayFunc);
+            }
+        });
+        return;
+    }
     var oldAlarm = myAlarm[type];
     var alarmObj = {
         token: myToken
@@ -1953,7 +1952,7 @@ function loadAlarm() {
         }).fail(function (err) {
             console.log("Failed to load alarm: ", err);
             if (typeof myAlarm === "undefined") {
-                setAlarm(false);
+                setAlarm({});
             }
         }).always(function () {
             resolve(myAlarm);
