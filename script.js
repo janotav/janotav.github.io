@@ -342,7 +342,7 @@ function setLocationName(name) {
 
 function setPosition(position, store) {
     myLocation = position;
-    setLocationName(undefined);
+    setLocationName("");
     var jitter = false;
     var difference;
     if (typeof myLocationJitter !== "undefined") {
@@ -600,20 +600,17 @@ function initialize() {
 
     var uvPredictionSync = $("#uv_prediction_sync");
     uvPredictionSync.click(function () {
-        var today = new Date();
-        var now = today.getTime();
-        today.setHours(3, 0, 0, 0); // early in the morning - it's unclear how source handles date/TZ - this should give enough buffer
-        return onSync(uvPredictionSync, today.getTime() + 86400000 - now, loadUvPredictionPositionAndAlarm);
+        return onSync(uvPredictionSync, 60000, loadUvPredictionPositionAndAlarm);
     });
 
     var stationsNodataSync = $("#stations_nodata_sync");
     stationsNodataSync.click(function () {
-        return onSync(stationsNodataSync, 60000, loadStationsPage);
+        return onSync(stationsNodataSync, 10000, loadStationsPage);
     });
 
     var uvNodataSync = $("#uv_nodata_sync");
     uvNodataSync.click(function () {
-        return onSync(uvNodataSync, 60000, function () {
+        return onSync(uvNodataSync, 10000, function () {
             return Promise.all([loadUvPredictionPositionAndAlarm(), loadUvOnline()]);
         });
     });
@@ -672,8 +669,8 @@ function initialize() {
 
     searchInput.change(filterChangeHandler);
 
-    $("#location_navigation").click(toggleLocationPage);
-    $("#location").click(toggleLocationPage);
+    $("#location_navigation").click(hideLocationPage);
+    $("#location").click(showLocationPage);
 
     var locationPickerCurrent = $("#location_picker_current");
     if (navigator.geolocation) {
@@ -681,7 +678,7 @@ function initialize() {
         // the lock ensures we don't execute when others are running (rather than vice-versa)
         locationPickerCurrent.click(busyCheck(function() {
             loadPosition(true, false);
-            toggleLocationPage();
+            hideLocationPage();
         }));
     } else {
         locationPickerCurrent.addClass("invisible");
@@ -805,7 +802,7 @@ function selectPlace(place, history) {
             },
             custom: true
         }, true);
-        toggleLocationPage();
+        hideLocationPage();
     }
     if (typeof place.coords !== "undefined") {
         // coordinates are known (e.g. history item)
@@ -867,6 +864,10 @@ function createItemPickerItem(place, history, callback) {
             if (typeof callback === 'function') {
                 callback();
             }
+        }).catch(function (err) {
+            // happens when could not resolve coordinates
+            // TODO: display user message somewhere explaining why clicking does not work
+            busyLeave(refresh);
         });
     }, refresh));
     return itemDiv;
@@ -1021,15 +1022,20 @@ function disablePendingExit() {
     }
 }
 
-function toggleLocationPage() {
+function showLocationPage() {
     disablePendingExit();
-    $("#footer").toggleClass("invisible");
-    $("#location_page").toggleClass("invisible");
-    main_page.toggleClass("invisible");
-    if (main_page.hasClass("invisible")) {
-        backNavigation = toggleLocationPage;
-    }
+    $("#footer").addClass("invisible");
+    main_page.addClass("invisible");
+    $("#location_page").removeClass("invisible");
+    backNavigation = hideLocationPage;
     recalculateLocationPlaceHolder();
+}
+
+function hideLocationPage() {
+    $("#footer").removeClass("invisible");
+    $("#location_page").addClass("invisible");
+    main_page.removeClass("invisible");
+    backNavigation = undefined;
 }
 
 function filterChangeHandler() {
@@ -1053,6 +1059,7 @@ function hideFavoritesPage() {
     updateFavoriteMenuItem(true);
     applyFavoriteFilter();
     favoritesManipulated = false;
+    backNavigation = undefined;
 }
 
 var historySaveScrollTop;
@@ -1078,6 +1085,7 @@ function hideHistoryPage() {
     main_page.removeClass("invisible");
     screen.orientation.lock("portrait").catch(orientationErr);
     $(window).scrollTop(historySaveScrollTop);
+    backNavigation = undefined;
 }
 
 function applyFavoriteFilter() {
@@ -1216,6 +1224,9 @@ function loadStationsPage() {
     if (typeof myLocation === "undefined" || myLocation.custom !== true) {
         // reload position only if custom coordinates are not set
         loadPosition(false, false);
+    } else {
+        // reload location name
+        displayLocation();
     }
 
     return Promise.all([
@@ -1236,9 +1247,10 @@ function loadUvPredictionPositionAndAlarm() {
             // reload position only if custom coordinates are not set
             loadPosition(false, false).then(resolve);
         } else {
+            // reload location name
+            displayLocation();
             resolve(false);
         }
-
     }).then(function (positionChanged) {
         if (!positionChanged) {
             // if position changes UV prediction is loaded automatically
@@ -2537,7 +2549,7 @@ function getPlaceLocation(id) {
             console.log("Place location result: ", places);
             resolve(places);
         }).catch(function (err) {
-            console.error("Place loction error: ", err);
+            console.error("Place location error: ", err);
             reject(err);
         });
     });
@@ -2581,10 +2593,12 @@ function loadLocationName(lat, lon) {
                 resolve(address);
             } else {
                 console.error("Negative response for location coordinates", result);
+                addMessage("Zjištění jména aktuální lokace nebylo úspěšné");
                 resolve(undefined);
             }
         }).fail(function (err) {
             console.error("Failed to resolve location coordinates", err);
+            addMessage("Zjištění jména aktuální lokace selhalo");
             resolve(undefined);
         });
     });

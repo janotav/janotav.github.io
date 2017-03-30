@@ -37,3 +37,5 @@ self.addEventListener('fetch', function(event) {
         })
     );
 });
+
+// force cache update
