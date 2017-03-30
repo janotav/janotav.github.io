@@ -294,8 +294,23 @@ function setUvOnline(uvData) {
     });
 }
 
-function loadPosition(store) {
+function loadPosition(store, useDefault) {
     return new Promise(function (resolve, reject) {
+        var notAvailable = function () {
+            addMessage("Aktuální pozice není k dispozici, povolte přístup v nastavení vašeho prohlížeče");
+            if (useDefault) {
+                var defaultPosition = {
+                    coords: {
+                        latitude: 50.0755381,
+                        longitude: 14.4378005
+                    },
+                    custom: true
+                };
+                resolve(setPosition(defaultPosition, store));
+            } else {
+                resolve(false);
+            }
+        };
         if (navigator.geolocation) {
             console.log('Retrieving current position');
             navigator.geolocation.getCurrentPosition(function (position) {
@@ -303,12 +318,11 @@ function loadPosition(store) {
                 resolve(setPosition(position, store));
             }, function (err) {
                 console.error("Failed to obtain current position: ", err);
-                // position not changed
-                resolve(false);
+                notAvailable();
             });
         } else {
-            // position not changed
-            resolve(false);
+            console.error("Geolocation API not available");
+            notAvailable();
         }
     });
 }
@@ -502,11 +516,11 @@ function initialize() {
         };
         request.onerror = function (event) {
             console.error("Failed to open IDB database BuenosAires: ", event);
-            loadPosition(false);
+            loadPosition(false, true);
         }
     } else {
         // no storage, assume current location
-        loadPosition(false);
+        loadPosition(false, true);
     }
 
     if ('serviceWorker' in navigator) {
@@ -666,7 +680,7 @@ function initialize() {
         // we assume position loading is so quick we don't need progress indication
         // the lock ensures we don't execute when others are running (rather than vice-versa)
         locationPickerCurrent.click(busyCheck(function() {
-            loadPosition(true);
+            loadPosition(true, false);
             toggleLocationPage();
         }));
     } else {
@@ -938,12 +952,12 @@ function restoreCurrentPlace() {
             setPosition(event.target.result.item, false);
         } else {
             // load current position
-            loadPosition(false);
+            loadPosition(false, true);
         }
     };
     req.onerror = function (event) {
         console.error("Failed to retrieved current place", event);
-        loadPosition(false);
+        loadPosition(false, true);
     };
 }
 
@@ -1201,7 +1215,7 @@ function reloadStationsPage() {
 function loadStationsPage() {
     if (typeof myLocation === "undefined" || myLocation.custom !== true) {
         // reload position only if custom coordinates are not set
-        loadPosition(false);
+        loadPosition(false, false);
     }
 
     return Promise.all([
@@ -1220,7 +1234,7 @@ function loadUvPredictionPositionAndAlarm() {
     return new Promise(function (resolve, reject) {
         if (typeof myLocation === "undefined" || myLocation.custom !== true) {
             // reload position only if custom coordinates are not set
-            loadPosition(false).then(resolve);
+            loadPosition(false, false).then(resolve);
         } else {
             resolve(false);
         }
@@ -2365,12 +2379,6 @@ function loadHistory(station, from, to, precisionFunc, type, multipleDays) {
 function loadUvPrediction() {
     console.log("Retrieving UV prediction data");
     return new Promise(function (resolve, reject) {
-        // var prediction = [1,2,3,4,5,6];
-        // setUvPrediction(prediction);
-        // uvPredictionLoadingFinished();
-        // resolve(prediction);
-        // // resolve(undefined);
-        // return;
         $.ajax({
             url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/uv/prediction',
             method: 'GET',
