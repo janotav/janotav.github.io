@@ -306,7 +306,7 @@ function loadPosition(store, useDefault) {
                     },
                     custom: true
                 };
-                resolve(setPosition(defaultPosition, store));
+                resolve(setPosition(defaultPosition, store, true));
             } else {
                 resolve(false);
             }
@@ -315,7 +315,7 @@ function loadPosition(store, useDefault) {
             console.log('Retrieving current position');
             navigator.geolocation.getCurrentPosition(function (position) {
                 // resolves to true if position (meaninfully) changed (jitter is ignored), to false otherwise
-                resolve(setPosition(position, store));
+                resolve(setPosition(position, store, false));
             }, function (err) {
                 console.error("Failed to obtain current position: ", err);
                 notAvailable();
@@ -332,7 +332,7 @@ function setLocationName(name) {
 
     $(".location_name").text(name);
     $("#uv_alarm").find(".uv_toggle").each(function (index, element) {
-        if (typeof myLocationName === "undefined") {
+        if (typeof myLocationName === "undefined" && myLocationName !== "") {
             $(element).addClass("inactive");
         } else {
             $(element).removeClass("inactive");
@@ -340,9 +340,11 @@ function setLocationName(name) {
     });
 }
 
-function setPosition(position, store) {
+function setPosition(position, store, clearName) {
     myLocation = position;
-    setLocationName("");
+    if (clearName) {
+        setLocationName("");
+    }
     var jitter = false;
     var difference;
     if (typeof myLocationJitter !== "undefined") {
@@ -437,6 +439,8 @@ function initializeSwiper() {
         onTransitionEnd: function () {
             updateContextMenu();
             storeSlide();
+            // workaround allowing to fix slide height if not calculated correctly by switching slides
+            updateSlidesHeight();
         }
     };
     swiper = new Swiper('.swiper-container', options);
@@ -729,7 +733,7 @@ function initialize() {
     $("#uv_alarm").find(".uv_toggle").each(function (index, element) {
         var jqElem = $(element);
         jqElem.click(function () {
-            if (typeof myLocationName !== "undefined") {
+            if (typeof myLocationName !== "undefined" && myLocationName !== "") {
                 updateUvPredictionAlarm(Number(jqElem.text()), myLocationName);
             }
         });
@@ -801,7 +805,7 @@ function selectPlace(place, history) {
                 longitude: place.coords.lng
             },
             custom: true
-        }, true);
+        }, true, true);
         hideLocationPage();
     }
     if (typeof place.coords !== "undefined") {
@@ -950,7 +954,7 @@ function restoreCurrentPlace() {
     req.onsuccess = function (event) {
         if (event.target.result.item.custom === true) {
             // explicit coordinates: restore them
-            setPosition(event.target.result.item, false);
+            setPosition(event.target.result.item, false, true);
         } else {
             // load current position
             loadPosition(false, true);
