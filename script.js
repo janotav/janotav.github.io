@@ -27,6 +27,7 @@ var exitPending = false;
 var exitPendingId = 0;
 var swiper;
 var ignoreSlideRestore;
+var messageId = 0;
 
 var uvPrediction;
 var uvPredictionChart;
@@ -138,8 +139,6 @@ function setUvPrediction(prediction) {
 
     // TODO: two distinct progress inidication? wait for both?
 
-    $("#uv_running").remove();
-    $("#alarm1").find(".alarm_running").removeClass("invisible");
     var slide = $("#slide1")
     slide.find(".uv_outer").removeClass("invisible");
     updateSlideHeightInAWhile(slide);
@@ -219,13 +218,6 @@ function setUvOnline(uvData) {
     if (typeof uvOnlineChart !== "undefined") {
         uvOnlineChart.destroy();
     }
-
-    if (typeof uvData.data === "undefined") {
-        $("#uv_online_nodata").removeClass("invisible");
-        return;
-    }
-
-    $("#uv_online_nodata").addClass("invisible");
 
     var tooltipIndex;
     var options = {
@@ -309,6 +301,10 @@ function loadPosition(store) {
             navigator.geolocation.getCurrentPosition(function (position) {
                 // resolves to true if position (meaninfully) changed (jitter is ignored), to false otherwise
                 resolve(setPosition(position, store));
+            }, function (err) {
+                console.error("Failed to obtain current position: ", err);
+                // position not changed
+                resolve(false);
             });
         } else {
             // position not changed
@@ -425,16 +421,20 @@ function initializeSwiper() {
             disablePendingExit();
         },
         onTransitionEnd: function () {
-            // when needed, menu items should be made context-aware
-            if (swiper.activeIndex === 0) {
-                $("#menu_expander").removeClass("invisible");
-            } else {
-                $("#menu_expander").addClass("invisible");
-            }
+            updateContextMenu();
             storeSlide();
         }
     };
     swiper = new Swiper('.swiper-container', options);
+}
+
+function updateContextMenu() {
+    // when needed, menu items should be made context-aware
+    if (swiper.activeIndex === 0 && typeof myStations !== "undefined") {
+        $("#menu_expander").removeClass("invisible");
+    } else {
+        $("#menu_expander").addClass("invisible");
+    }
 }
 
 function initialize() {
@@ -442,6 +442,7 @@ function initialize() {
 
     initializeComponents();
     initializeSwiper();
+    updateContextMenu();
 
     if ('indexedDB' in window) {
         var idb = window.indexedDB;
@@ -564,6 +565,18 @@ function initialize() {
         var now = today.getTime();
         today.setHours(3, 0, 0, 0); // early in the morning - it's unclear how source handles date/TZ - this should give enough buffer
         return onSync(uvPredictionSync, today.getTime() + 86400000 - now, loadUvPredictionPositionAndAlarm);
+    });
+
+    var stationsNodataSync = $("#stations_nodata_sync");
+    stationsNodataSync.click(function () {
+        return onSync(stationsNodataSync, 60000, loadStationsPage);
+    });
+
+    var uvNodataSync = $("#uv_nodata_sync");
+    uvNodataSync.click(function () {
+        return onSync(uvNodataSync, 60000, function () {
+            return Promise.all([loadUvPredictionPositionAndAlarm(), loadUvOnline()]);
+        });
     });
 
     installPreventPullToReload();
@@ -1296,7 +1309,9 @@ function toggleDetail(stationCode, forceShow) {
     if (typeof station.detail === 'undefined') {
         stationSpinnerDiv.removeClass("invisible");
         // scroll after  detail is loaded to avoid flickr
-        loadDetail(stationCode).then(scrollTo);
+        loadDetail(stationCode).then(scrollTo).catch(function () {
+            stationDetailDiv.addClass("invisible");
+        });
     } else {
         scrollTo();
     }
@@ -1356,8 +1371,6 @@ function setDetail(pDetail) {
         data: data
     };
     
-    $("#" + stationCode + "_spinner").addClass("invisible");
-
     var detail = $("#" + stationCode + "_detail");
 
     var summaryDiv = $("<div class='detail_panel'>");
@@ -1484,6 +1497,38 @@ function addAlarmPanelToDetail(stationCode, detail) {
     detail.append(alarmPanelDiv);
 }
 
+function uvOnlineLoadingFinished() {
+    if (typeof uvOnline === "undefined" || typeof uvOnline.data === "undefined") {
+        $("#uv_online_nodata").removeClass("invisible");
+    } else {
+        $("#uv_online_nodata").addClass("invisible");
+    }
+}
+
+function metaLoadingFinished() {
+    $("#stations_running").remove();
+    showAlarmProgress($("#alarm0"));
+    if (typeof myMeta === "undefined") {
+        $("#stations_nodata").removeClass("invisible");
+    } else {
+        $("#stations_nodata").addClass("invisible");
+    }
+}
+
+function uvPredictionLoadingFinished() {
+    $("#uv_running").remove();
+    showAlarmProgress($("#alarm1"));
+    if (typeof uvPrediction === "undefined") {
+        $("#uv_nodata").removeClass("invisible");
+    } else {
+        $("#uv_nodata").addClass("invisible");
+    }
+}
+
+function detailLoadingFinished(stationCode) {
+    $("#" + stationCode + "_spinner").addClass("invisible");
+}
+
 function setMeta(meta) {
     if (typeof myMeta !== 'undefined' && myMeta.date === meta.date) {
         // do nothing unless data changed (prevent collapsing on reload without data change)
@@ -1494,8 +1539,6 @@ function setMeta(meta) {
 
     $("#time_outer").removeClass("invisible");
     $("#location").removeClass("invisible");
-    $("#stations_running").remove();
-    showAlarmProgress($("#alarm0"));
 
     var stations = $("#stations");
     stations.empty();
@@ -1549,7 +1592,7 @@ function setMeta(meta) {
         });
     });
     updateFavoriteIcons();
-
+    updateContextMenu();
     displayEmissionAlarm();
 }
 
@@ -1824,52 +1867,70 @@ function blink(alarmComponent, qualityClass, n) {
     }, 100);
 }
 
+function updateAlarmHandler(type, alarm, displayFunc) {
+    var oldAlarm = myAlarm[type];
+    var alarmObj = {
+        token: myToken
+    };
+    if (typeof alarm === "undefined") {
+        delete myAlarm[type];
+        alarmObj[type] = {};
+    } else {
+        myAlarm[type] = alarm;
+        alarmObj[type] = alarm;
+    }
+    updateAlarm(alarmObj).catch(function () {
+        if (typeof oldAlarm === "undefined") {
+            delete myAlarm[type];
+        } else {
+            myAlarm[type] = oldAlarm;
+        }
+        addMessage("Nastavení upozornění nebylo úspěšné, opakujte akci později");
+        displayFunc();
+    });
+    displayFunc();
+}
+
 function removeEmissionAlarm() {
-    delete myAlarm.emission;
-    updateAlarm({token: myToken, emission: {}});
-    displayEmissionAlarm();
+    updateAlarmHandler("emission", undefined, displayEmissionAlarm);
 }
 
 function updateEmissionAlarm(code, level) {
-    myAlarm.emission = {
+    updateAlarmHandler("emission", {
         code: code,
         level: level
-    };
-    updateAlarm({token: myToken, emission: myAlarm.emission});
-    displayEmissionAlarm();
+    }, displayEmissionAlarm);
 }
 
 function removeUvPredictionAlarm() {
-    delete myAlarm.uv;
-    updateAlarm({token: myToken, uv: {}});
-    displayUvPredictionAlarm();
+    updateAlarmHandler("uv", undefined, displayUvPredictionAlarm);
 }
 
 function updateUvPredictionAlarm(level, name) {
-    myAlarm.uv = {
+    updateAlarmHandler("uv", {
         level: level,
         lat: myLocation.coords.latitude,
         lon: myLocation.coords.longitude,
         name: name
-    };
-    updateAlarm({token: myToken, uv: myAlarm.uv});
-    displayUvPredictionAlarm();
+    }, displayUvPredictionAlarm);
 }
 
 function updateAlarm(alarm) {
-    // waiting for the server call makes the app look a little bit unresponsive, let's assume the operation succeeds
-    $.ajax({
-        url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/alarm2',
-        method: 'POST',
-        data: JSON.stringify(alarm),
-        contentType: 'application/json',
-        headers: {
-            'x-api-key': 'api_key_public_access'
-        }
-    }).fail(function (err) {
-        console.error("Unablet to set alarm: ", alarm, err);
-        // revert to previous setting if server didn't succeed
-        loadAlarm();
+    return new Promise(function (resolve, reject) {
+        $.ajax({
+            url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/alarm2',
+            method: 'POST',
+            data: JSON.stringify(alarm),
+            contentType: 'application/json',
+            headers: {
+                'x-api-key': 'api_key_public_access'
+            }
+        }).done(function () {
+            resolve();
+        }).fail(function (err) {
+            console.error("Unablet to set alarm: ", alarm, err);
+            reject();
+        });
     });
 }
 
@@ -1889,7 +1950,13 @@ function loadAlarm() {
         }).done(function (item) {
             console.log('Current server alarm: ', item);
             setAlarm(item);
-            resolve(item);
+        }).fail(function (err) {
+            console.log("Failed to load alarm: ", err);
+            if (typeof myAlarm === "undefined") {
+                setAlarm(false);
+            }
+        }).always(function () {
+            resolve(myAlarm);
         });
     });
 }
@@ -2254,6 +2321,22 @@ function setHistory(to, history, precisionFunc, selectMeasurementType, multipleD
     return measurementTypeSelected;
 }
 
+function addMessage(message) {
+    var div = $("<div style='display: flex; align-items: center; justify-content: space-between;'><i class='fa fa-exclamation-triangle padr' aria-hidden='true'></i></div>");
+    var msg = $("<div style='flex-grow: 1;'></div>");
+    msg.text(message);
+    div.append(msg);
+    var close = $("<i class='fa fa-times' aria-hidden='true' style='padding-right: 20px;'></i>");
+    div.append(close);
+    div.attr("id", "msg_" + (++messageId));
+    $("#messages").prepend(div);
+    var closeFunc = function () {
+        div.remove();
+    };
+    setTimeout(closeFunc, 3000);
+    close.click(closeFunc);
+}
+
 function loadHistory(station, from, to, precisionFunc, type, multipleDays) {
     console.log('Retrieving station history data from the server');
     return new Promise(function (resolve, reject) {
@@ -2275,7 +2358,7 @@ function loadHistory(station, from, to, precisionFunc, type, multipleDays) {
             resolve(typeSelected);
         }).catch(function (err) {
             console.error("Failed to retrieve station history: ", err);
-            reject(err);
+            resolve(false);
         });
     });
 }
@@ -2283,6 +2366,12 @@ function loadHistory(station, from, to, precisionFunc, type, multipleDays) {
 function loadUvPrediction() {
     console.log("Retrieving UV prediction data");
     return new Promise(function (resolve, reject) {
+        // var prediction = [1,2,3,4,5,6];
+        // setUvPrediction(prediction);
+        // uvPredictionLoadingFinished();
+        // resolve(prediction);
+        // // resolve(undefined);
+        // return;
         $.ajax({
             url: 'https://dph57g603c.execute-api.eu-central-1.amazonaws.com/prod/uv/prediction',
             method: 'GET',
@@ -2296,10 +2385,14 @@ function loadUvPrediction() {
         }).done(function (prediction) {
             console.log("UV index prediction: ", prediction);
             setUvPrediction(prediction);
-            resolve(prediction);
-        }).catch(function (err) {
+        }).fail(function (err) {
             console.error("Failed to retrieve UV index prediction: ", err);
-            reject(err);
+            if (typeof uvPrediction !== "undefined") {
+                addMessage("Aktuální předpověď UV-Indexu se nepodařilo získat");
+            }
+        }).always(function () {
+            uvPredictionLoadingFinished();
+            resolve(uvPrediction);
         });
     });
 }
@@ -2323,11 +2416,14 @@ function loadUvOnline() {
         }).done(function (onlineData) {
             console.log("UV online data: ", onlineData);
             setUvOnline(onlineData);
-            resolve(onlineData);
-        }).catch(function (err) {
+        }).fail(function (err) {
             console.error("Failed to retrieve UV online data: ", err);
-            setUvOnline({});
-            resolve({});
+            if (typeof uvOnline !== "undefined") {
+                addMessage("Aktuální UV měření se nepodařilo získat");
+            }
+        }).always(function () {
+            uvOnlineLoadingFinished();
+            resolve(uvOnline);
         });
     });
 }
@@ -2344,10 +2440,14 @@ function loadMeta() {
             }).done(function (meta) {
                 console.log('Current server meta summary: ', meta);
                 setMeta(meta);
-                resolve(meta);
-            }).catch(function (err) {
+            }).fail(function (err) {
                 console.error('Failed to retrieve meta summary: ', err);
-                reject(err);
+                if (typeof myMeta !== "undefined") {
+                    addMessage("Aktuální emisní data se nepodařilo získat");
+                }
+            }).always(function () {
+                metaLoadingFinished();
+                resolve(myMeta);
             });
     });
 }
@@ -2371,12 +2471,11 @@ function loadDetail(stationCode) {
             resolve(detail);
         }).fail(function (err) {
             console.error('Station ' + stationCode + ' error: ', err);
-            setDetail({
-                code: stationCode,
-                data: []
-            });
+            addMessage("Detail není nedostupný, opakujte akci později");
             reject(err);
-        });
+        }).always(function () {
+            detailLoadingFinished(stationCode);
+        })
     });
 }
 
@@ -2475,11 +2574,11 @@ function loadLocationName(lat, lon) {
                 resolve(address);
             } else {
                 console.error("Negative response for location coordinates", result);
-                reject(result.status);
+                resolve(undefined);
             }
         }).fail(function (err) {
             console.error("Failed to resolve location coordinates", err);
-            reject(err);
+            resolve(undefined);
         });
     });
 }

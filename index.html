@@ -389,6 +389,14 @@
         padding-left: 10px;
     }
 
+    .messages {
+        position: absolute;
+        background: black;
+        bottom: 200px;
+        width: 100%;
+        padding-left: 10px;
+    }
+
 </style>
 <body>
 <div id="components" class="invisible">
@@ -419,7 +427,7 @@
                     <div id="alarm0"></div>
                     <div class="stations_outer invisible">
                         <div class="time">
-                            Čas měření <span id="time">18. 3. 2017 12:00:00</span>
+                            Čas měření <span id="time"></span>
                         </div>
                         <i id="time_spin" class="fa fa-refresh fa-fw"></i>
                     </div>
@@ -430,6 +438,11 @@
                 <div class="slide_body">
                     <div id="stations_running" class="running">
                         <i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"></i>
+                    </div>
+                    <div id="stations_nodata" class="invisible">
+                        <div class="running">
+                            <div><i class="fa fa-bug padr" aria-hidden="true"></i>Data nejsou k dispozici<i id="stations_nodata_sync" class="fa fa-refresh fa-fw"></i></div>
+                        </div>
                     </div>
                     <div class="stations_outer invisible">
                         <div id="stations" class="stations"></div>
@@ -443,6 +456,11 @@
                 <div class="slide_body">
                     <div id="uv_running" class="running">
                         <i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"></i>
+                    </div>
+                    <div id="uv_nodata" class="invisible">
+                        <div class="running">
+                            <div><i class="fa fa-bug padr" aria-hidden="true"></i>Data nejsou k dispozici<i id="uv_nodata_sync" class="fa fa-refresh fa-fw"></i></div>
+                        </div>
                     </div>
                     <div class="uv_outer invisible">
                         <div class="chart_title">Předpověď UV-Indexu: <span class="location_name"></span><i id="uv_prediction_sync" class="fa fa-refresh fa-fw"></i></div>
@@ -465,7 +483,7 @@
                         </div>
 
                         <div class="chart_title">On-line měření UV-Indexu<i id="uv_online_sync" class="fa fa-refresh fa-fw"></i></div>
-                        <div id="uv_online_nodata" class="invisible padl padt">Data nejsou k dispozici</div>
+                        <div id="uv_online_nodata" class="invisible padl padt"><i class="fa fa-bug padr" aria-hidden="true"></i>Data nejsou k dispozici</div>
                         <canvas id="uv_online"></canvas>
                     </div>
                 </div>
@@ -542,6 +560,8 @@
 </div>
 <div id="footer">
     <div class="footer">
+        <div id="messages" class="messages">
+        </div>
         <div>
             <div class="swiper-pagination"></div>
         </div>
